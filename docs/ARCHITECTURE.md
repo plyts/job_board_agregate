@@ -42,6 +42,8 @@ Monolithe modulaire en TypeScript : une seule base de code, deux processus.
 
 ## Modules
 
+Interfaces utilisateur : pages en Server Components, mutations en Server Actions (vérification de session dans chaque action). Les contrats de `API.md` décrivent les entrées et sorties de ces actions ; une API HTTP publique n'est pas exposée au MVP.
+
 Chaque module expose une API TypeScript (`src/modules/<nom>/index.ts`) ; les autres modules ne lisent jamais ses tables directement.
 
 | Module | Responsabilité | Tables principales |
@@ -61,15 +63,22 @@ Chaque module expose une API TypeScript (`src/modules/<nom>/index.ts`) ; les aut
 
 | Tâche | Déclencheur | Idempotence | Échec |
 |---|---|---|---|
-| `offer.fetch` | Import par URL | Clé = URL canonique | Refus robots/CGU → état « texte requis », pas de nouvel essai |
+| *(synchrone)* récupération d'URL | Import par URL | URL canonique vérifiée avant tout appel réseau | Faite pendant la requête (5 s max) pour un retour immédiat ; refus robots/CGU/adresse interne → l'utilisateur colle le texte, l'URL est conservée |
 | `offer.analyze` | Offre nouvelle | Clé = `sha256(texte normalisé) + version du schéma + version du prompt` ; résultat en cache | 3 essais, temporisation 30 s / 2 min / 10 min, puis « échec » visible |
 | `profile.extract` | Import de CV | Clé = empreinte du fichier | idem |
 | `match.compute` | Analyse terminée, nouvelle version de profil ou de CV | Clé = (offre, version de document) | idem |
 | `cv.export` | Demande d'export | Clé = (version, format) | idem |
-| `jobs.watchdog` | Toutes les 5 min | — | Tâche active > 5 min → remise en file + log |
+| *(pg-boss)* expiration | Continu | — | Une tâche active au-delà de `expireInSeconds` est reprise ou marquée en échec par pg-boss : pas de watchdog maison |
 | `reminders.due` | Tous les matins | — | — |
 
-L'enregistrement métier et la mise en file se font dans **la même transaction** (pg-boss partage la base) : pas de tâche orpheline ni d'offre sans analyse planifiée.
+L'enregistrement métier et la mise en file se font dans **la même transaction** (pg-boss reçoit la connexion de la transaction) : pas de tâche orpheline ni d'offre sans analyse planifiée. Les files utilisent la politique `exclusive` avec `singletonKey` : au plus une tâche en attente ou en cours par objet.
+
+## Récupération d'une page (import par URL)
+
+- Adresse vérifiée **au moment de la connexion** (résolution DNS contrôlée dans l'agent HTTP) : seules les adresses unicast publiques sont joignables, y compris après redirection ; ports 80/443 uniquement.
+- `robots.txt` respecté pour l'agent `JobPilotBot` ; domaines dont les conditions interdisent la collecte (LinkedIn, Indeed) refusés d'office.
+- 5 s de délai, 2 Mo maximum, 3 redirections, contenu HTML ou texte uniquement.
+- Extraction : annonce structurée schema.org `JobPosting` (JSON-LD) en priorité, sinon contenu principal de la page sans scripts ni navigation.
 
 ## Pipeline IA
 

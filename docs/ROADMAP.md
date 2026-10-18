@@ -19,7 +19,7 @@ Priorisation MoSCoW. Chaque tâche n'est commencée que si la précédente est v
 | T10 | **Tableau de bord** : agrégats depuis les événements, objectif quotidien, coût IA | T9 | `src/modules/metrics`, écran 1 | US9 ; chiffres égaux à un recalcul SQL indépendant | Intégration | — |
 | T11 | **Durcissement** : test de charge 100 offres, axe-core, sauvegardes, export/suppression du compte | T10 | — | NFR du PRD mesurées et documentées | Charge, a11y | — |
 
-Première tâche exécutable sans ambiguïté : **T0**.
+Ordre réel : T0 → T1 → T2 → **T4 avant T3**. L'import d'offres ne touche aucune donnée personnelle, alors que l'envoi du CV au modèle attend ta décision sur le consentement (PROGRESS.md).
 
 ## V2 — Automatisation (Should)
 

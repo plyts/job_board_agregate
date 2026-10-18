@@ -2,7 +2,27 @@
 
 Plateforme personnelle de recherche d'emploi : importer des offres, les analyser, les comparer à un profil professionnel vérifié, adapter et versionner le CV, recontrôler la correspondance, puis suivre chaque candidature jusqu'à la réponse.
 
-> **État : cadrage.** Aucun code applicatif n'existe encore. Ce dépôt contient l'audit, la spécification, l'architecture, le plan de livraison et les maquettes d'interface validées avant développement. Voir [`docs/PROGRESS.md`](docs/PROGRESS.md).
+> **État : MVP en construction.** Livré : socle, authentification, plateforme (file de tâches, client IA sous budget), import et dédoublonnage des offres. Voir [`docs/PROGRESS.md`](docs/PROGRESS.md).
+
+## Démarrage
+
+Prérequis : Node.js 22, PostgreSQL 16.
+
+```bash
+npm install
+cp .env.example .env.local          # puis renseigner DATABASE_URL
+npm run db:migrate
+JOBPILOT_PASSWORD='…' npm run user:create -- --email moi@exemple.fr --name "Mon nom"
+npm run dev                          # http://localhost:3000
+npm run worker                       # traitements en arrière-plan (autre terminal)
+```
+
+| Commande | Rôle |
+|---|---|
+| `npm run lint` / `typecheck` | Qualité |
+| `npm test` | Tests unitaires et d'intégration (base `DATABASE_URL_TEST`, vidée à chaque test) |
+| `npm run test:e2e` | Parcours Playwright, bureau et mobile (base `jobpilot_e2e`) |
+| `npm run db:generate` | Génère une migration après modification de `src/db/schema` |
 
 ## Principes non négociables
 

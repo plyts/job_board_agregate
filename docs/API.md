@@ -1,5 +1,7 @@
 # Contrats d'interface
 
+> **Implémentation au MVP** : l'interface appelle des Server Actions Next.js qui exposent les mêmes entrées et sorties que les routes ci-dessous ; seules `/api/health` et les futurs téléchargements de fichiers sont de vraies routes HTTP. Implémenté à ce jour : connexion/déconnexion, `importOfferAction` (≈ `POST /api/offers` et `/api/offers/files`), liste et détail des offres.
+
 Toutes les routes exigent une session ; toute entrée est validée par un schéma Zod partagé (`src/contracts`). Erreurs au format :
 
 ```json
