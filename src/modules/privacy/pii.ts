@@ -72,7 +72,7 @@ const RULES: { category: PiiCategory; pattern: RegExp; keep?: (m: string) => boo
   { category: "personal_link", pattern: /\b(?:https?:\/\/)?(?:[a-z]{2,3}\.)?(?:linkedin\.com\/in|github\.com|gitlab\.com|twitter\.com|x\.com|facebook\.com|instagram\.com|behance\.net|dribbble\.com|medium\.com\/@)[^\s,;)]*/gi },
   { category: "iban", pattern: /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{4}){3,7}(?:[ ]?[A-Z0-9]{1,3})?\b/g },
   // NIR : sexe, année, mois, département (dont 2A/2B), commune, ordre, clé facultative.
-  { category: "nir", pattern: /\b[12][ .]?\d{2}[ .]?(?:0[1-9]|1[0-2]|[2-9]\d)[ .]?(?:\d{2}|2[AB])[ .]?\d{3}[ .]?\d{3}(?:[ .]?\d{2})?\b/g },
+  { category: "nir", pattern: /(?<![\p{L}\d])[12][ .]?\d{2}[ .]?(?:0[1-9]|1[0-2]|[2-9]\d)[ .]?(?:\d{2}|2[AB])[ .]?\d{3}[ .]?\d{3}(?:[ .]?\d{2})?(?![\p{L}\d])/gu },
   { category: "birth_date", pattern: new RegExp(`(?:n[ée]e?\\s+le|date\\s+de\\s+naissance|born(?:\\s+on)?|date\\s+of\\s+birth|DOB)\\s*:?\\s*${DATE}`, "gi") },
   { category: "age", pattern: /\b(?:âge|age)\s*:?\s*\d{2}\s*ans\b/gi },
   { category: "nationality", pattern: /\b(?:nationalit[ée]|nationality|citizenship)\s*:?\s*[\p{L}][\p{L} -]{2,40}/giu },
@@ -88,7 +88,8 @@ const RULES: { category: PiiCategory; pattern: RegExp; keep?: (m: string) => boo
   { category: "address", pattern: new RegExp(`\\b\\d{1,4}\\s?(?:bis|ter)?,?\\s+(?:${STREET})\\s+[^\\n,;·|]{2,60}`, "giu") },
   {
     category: "phone",
-    pattern: /(?:\+\d{1,3}[\s.-]?)?(?:\(?\d{1,4}\)?[\s.-]?){3,5}\d{2,4}/g,
+    // Bornes : des chiffres collés à des lettres (identifiant, empreinte, nonce hexadécimal) ne sont pas un numéro.
+    pattern: /(?<![\p{L}\d])(?:\+\d{1,3}[\s.-]?)?(?:\(?\d{1,4}\)?[\s.-]?){3,5}\d{2,4}(?![\p{L}\d])/gu,
     // Une suite d'années (« 2019 – 2021 2022 ») ou un nombre court n'est pas un numéro.
     keep: (m) => {
       const digits = m.replace(/\D/g, "");

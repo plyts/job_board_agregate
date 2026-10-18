@@ -23,6 +23,14 @@ describe("masquage des données personnelles", () => {
     expect(guessName("Camille Martin, Data Engineer a Lyon.\nLumio : 30 pipelines.")).toBe("Camille Martin");
   });
 
+  it("ne prend pas les chiffres d'un identifiant ou du nonce d'un document encadré pour un numéro", () => {
+    for (const nonce of ["3829104756123456", "a3829104756b1234", "1900369123456789"]) {
+      const block = `<document kind="candidate_profile" id="${nonce}">\nData Engineer\n</document id="${nonce}">`;
+      expect(redactPii(block)).toMatchObject({ text: block, counts: {} });
+    }
+    expect(redactPii("Réf. A1234567890B, tél. 06 12 34 56 78").text).toBe("Réf. A1234567890B, tél. [TÉLÉPHONE]");
+  });
+
   it("traite un CV plus court que la zone d'en-tête", () => {
     expect(redactPii("Camille Martin\n69003 Lyon", { cv: true }).text).toBe("[CANDIDAT]\n[CODE POSTAL] Lyon");
     expect(redactPii("", { cv: true }).text).toBe("");
