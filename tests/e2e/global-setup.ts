@@ -1,10 +1,10 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { createDb, createPool } from "../../src/db/client";
-import { jobOffers, llmCalls, loginAttempts } from "../../src/db/schema";
+import { loginAttempts, users } from "../../src/db/schema";
 import { runMigrations } from "../../src/db/migrate";
 import { analyzeOffer } from "../../src/modules/analysis";
 import { createUser, findUserByEmail } from "../../src/modules/identity";
-import { contentHash, importOffer } from "../../src/modules/offers";
+import { importOffer } from "../../src/modules/offers";
 import { FakeLlmClient } from "../../src/modules/platform/llm/fake";
 import { LocalFsStorage } from "../../src/modules/platform/storage";
 import { EXTRACTION, OFFER_TEXT } from "../helpers/fixtures";
@@ -18,15 +18,16 @@ export default async function globalSetup() {
   try {
     const db = createDb(pool);
     await runMigrations(db);
-    const user = (await findUserByEmail(db, E2E_USER.email)) ?? (await createUser(db, E2E_USER));
-    await db.delete(llmCalls).where(eq(llmCalls.userId, user.id));
+    // Compte recréé à chaque exécution : état de départ identique (la suppression emporte offres, profil et journal).
+    const previous = await findUserByEmail(db, E2E_USER.email);
+    if (previous) await db.delete(users).where(eq(users.id, previous.id));
+    const user = await createUser(db, E2E_USER);
     // Les échecs volontaires des scénarios précédents ne doivent pas verrouiller le compte.
     await db.delete(loginAttempts).where(eq(loginAttempts.email, E2E_USER.email));
 
     // Une offre analysée par projet Playwright : les scénarios qui la modifient ne se gênent pas.
     for (const project of E2E_PROJECTS) {
       const text = `${OFFER_TEXT}\nRéférence ${project}.`;
-      await db.delete(jobOffers).where(and(eq(jobOffers.userId, user.id), eq(jobOffers.contentHash, contentHash(text))));
       const imported = await importOffer(
         { db, pool, storage: new LocalFsStorage("/tmp/jobpilot-e2e-unused"), enqueueAnalysis: async () => {} },
         user.id,

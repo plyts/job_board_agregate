@@ -17,6 +17,14 @@ export const QUEUES = {
     retryDelayMax: 600,
     expireInSeconds: 300,
   },
+  "profile.extract": {
+    policy: "exclusive",
+    retryLimit: 3,
+    retryDelay: 30,
+    retryBackoff: true,
+    retryDelayMax: 600,
+    expireInSeconds: 300,
+  },
   /** Balayage planifié : remet en file les analyses en attente (budget atteint, worker arrêté). */
   "offer.resume": { policy: "exclusive", retryLimit: 0, expireInSeconds: 120 },
 } satisfies Record<string, Omit<Queue, "name">>;
@@ -44,6 +52,10 @@ export const SCHEDULES: { queue: QueueName; cron: string }[] = [{ queue: "offer.
 
 export function analysisJobOptions(offerId: string) {
   return { singletonKey: `offer:${offerId}` };
+}
+
+export function extractionJobOptions(versionId: string) {
+  return { singletonKey: `profile:${versionId}` };
 }
 
 export function transactionDb(client: PoolClient) {

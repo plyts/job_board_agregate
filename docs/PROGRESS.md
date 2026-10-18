@@ -12,6 +12,7 @@ Dernière mise à jour : 18/10/2026.
 | T2 Plateforme | File pg-boss (politique `exclusive`, 3 reprises avec temporisation, expiration), mise en file transactionnelle, stockage local sans écrasement, client Claude à sortie validée par schéma avec repli serveur, journal `llm_calls`, budget IA journalier bloquant, worker (`npm run worker`) | 7 tests d'intégration, 8 tests unitaires |
 | T4 Offres | Import par URL (adresses internes refusées, robots.txt, domaines interdits), texte collé, PDF/TXT ; URL canonique et empreinte pour le dédoublonnage ; liste filtrable ; fiche offre | 28 tests unitaires, 12 tests d'intégration, 3 scénarios e2e |
 | IA multi-fournisseurs | Client unique pour les API compatibles OpenAI (Groq, OpenRouter, Gemini, Mistral, Cerebras, modèle local) en plus de Claude ; routeur avec ordre configurable, repli sur le fournisseur suivant (429, quota du jour, erreur, sortie invalide), limites par minute et par jour, données personnelles refusées par défaut ; `npm run llm:check` ; écran « Fournisseurs IA » ; évaluation par fournisseur | 17 tests unitaires (dont un faux serveur HTTP), 5 tests d'intégration, 1 scénario e2e |
+| T3 Profil maître | Saisie et correction manuelles (éditeur complet), import PDF/DOCX avec extraction IA réservée aux fournisseurs autorisés pour les données personnelles et coordonnées masquées, signalement des éléments absents du CV source, versions validées immuables (trigger SQL), règle « pas de compétence sans preuve », historique des versions | 11 tests unitaires, 6 tests d'intégration, 2 scénarios e2e |
 | T5 Analyse (code) | Schéma d'extraction v1 et prompt `offer-extract-v1` ; contrôle déterministe des citations (une citation introuvable déclasse l'exigence en « incertaine ») ; versions d'analyse ; corrections journalisées ; qualifier / écarter ; relance manuelle ; traitement `offer.analyze` dans le worker (reprises, budget, refus) ; balayage planifié des analyses bloquées ; fiche avec extrait source surligné | 9 + 2 tests unitaires, 10 tests d'intégration (dont import → worker → offre analysée), 4 scénarios e2e |
 
 Dernière exécution locale : `lint` ✓, `typecheck` ✓, `test` 112/112 ✓, `build` ✓, `test:e2e` 22/22 ✓ (bureau et mobile). CI GitHub : verte sur T1, T2, T4 ; T5 et IA multi-fournisseurs à confirmer.
@@ -23,7 +24,7 @@ Rien.
 ## Pas encore fait
 
 - T5, mesure réelle : le jeu d'évaluation compte les 30 offres annotées prévues, mais n'a jamais été exécuté contre un modèle (aucune clé). Le critère « ≥ 90 % des exigences obligatoires retrouvées » n'est donc **pas encore vérifié**, ni pour Claude ni pour les modèles gratuits.
-- T3 Profil maître, T6 à T11.
+- T6 à T11.
 - Le tableau de bord affiche un état vide : aucune métrique n'est encore calculée.
 
 ## Aucun appel IA réel effectué
@@ -47,5 +48,4 @@ Les clients Claude et compatibles OpenAI sont testés avec un faux client et un 
 ## Prochaine étape
 
 1. Dès qu'une clé est disponible : `npm run llm:check`, puis `npm run eval:offers -- --yes --provider <id>` pour chaque fournisseur (6 requêtes de quota chacun), et ajuster le prompt si le rappel est sous 90 %.
-2. T3 — profil maître (import du CV), après ta décision sur le consentement.
 3. En attendant : modules T3 à T10.

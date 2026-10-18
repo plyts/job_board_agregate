@@ -24,6 +24,10 @@ users 1─┬─* candidate_profiles 1─* profile_versions 1─┬─* experien
 llm_calls (journal de tous les appels IA)
 ```
 
+## Profil maître (ADR 0007)
+
+`profile_versions` (`version`, `status` draft|validated, `content` JSONB, `uncertainties`, `origin` manual|import|edit, `import_status`, `source_file_key`, `source_text`) remplace les tables `candidate_profiles`, `experiences`, `skills`, `skill_evidence`, etc. du schéma initial. Invariants : version validée immuable (trigger), un seul brouillon par utilisateur, preuves des compétences pointant vers des éléments existants.
+
 ## Tables clés
 
 | Table | Colonnes notables | Invariants |
@@ -57,7 +61,7 @@ llm_calls (journal de tous les appels IA)
 
 ## État réel des tables
 
-Créées à ce jour (migrations `drizzle/0000` à `0004`) : `users`, `sessions`, `login_attempts`, `llm_calls`, `companies`, `job_offers`, `offer_imports`, `offer_analyses`, `job_requirements`, `requirement_corrections`. Les autres tables de ce document restent à créer avec leur module.
+Créées à ce jour (migrations `drizzle/0000` à `0006`) : `users`, `sessions`, `login_attempts`, `llm_calls`, `companies`, `job_offers`, `offer_imports`, `offer_analyses`, `job_requirements`, `requirement_corrections`, `profile_versions`. Les autres tables de ce document restent à créer avec leur module.
 
 ## Migrations
 
