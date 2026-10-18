@@ -1,0 +1,2 @@
+ALTER TABLE "llm_calls" ADD COLUMN "provider" text DEFAULT 'anthropic' NOT NULL;--> statement-breakpoint
+CREATE INDEX "llm_calls_provider_created_idx" ON "llm_calls" USING btree ("provider","created_at");

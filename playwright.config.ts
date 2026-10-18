@@ -22,7 +22,8 @@ export default defineConfig({
   ],
   webServer: {
     command: `npm run start -- -p ${PORT}`,
-    env: { DATABASE_URL: process.env.DATABASE_URL, COOKIE_INSECURE: "1" },
+    // Fausse clé Groq : sert uniquement à afficher un fournisseur actif ; le serveur web n'appelle jamais le modèle.
+    env: { DATABASE_URL: process.env.DATABASE_URL, COOKIE_INSECURE: "1", GROQ_API_KEY: "cle-factice-e2e", GROQ_MODEL: "modele-e2e" },
     port: PORT,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

@@ -11,9 +11,10 @@ Dernière mise à jour : 18/10/2026.
 | T1 Identité | Compte propriétaire (`npm run user:create`), connexion, sessions en base (jeton haché), verrouillage après 5 échecs, déconnexion, contrôle optimiste `proxy.ts` + `requireUser()` | 5 tests d'intégration, 4 scénarios e2e |
 | T2 Plateforme | File pg-boss (politique `exclusive`, 3 reprises avec temporisation, expiration), mise en file transactionnelle, stockage local sans écrasement, client Claude à sortie validée par schéma avec repli serveur, journal `llm_calls`, budget IA journalier bloquant, worker (`npm run worker`) | 7 tests d'intégration, 8 tests unitaires |
 | T4 Offres | Import par URL (adresses internes refusées, robots.txt, domaines interdits), texte collé, PDF/TXT ; URL canonique et empreinte pour le dédoublonnage ; liste filtrable ; fiche offre | 28 tests unitaires, 12 tests d'intégration, 3 scénarios e2e |
+| IA multi-fournisseurs | Client unique pour les API compatibles OpenAI (Groq, OpenRouter, Gemini, Mistral, Cerebras, modèle local) en plus de Claude ; routeur avec ordre configurable, repli sur le fournisseur suivant (429, quota du jour, erreur, sortie invalide), limites par minute et par jour, données personnelles refusées par défaut ; `npm run llm:check` ; écran « Fournisseurs IA » ; évaluation par fournisseur | 17 tests unitaires (dont un faux serveur HTTP), 5 tests d'intégration, 1 scénario e2e |
 | T5 Analyse (code) | Schéma d'extraction v1 et prompt `offer-extract-v1` ; contrôle déterministe des citations (une citation introuvable déclasse l'exigence en « incertaine ») ; versions d'analyse ; corrections journalisées ; qualifier / écarter ; relance manuelle ; traitement `offer.analyze` dans le worker (reprises, budget, refus) ; balayage planifié des analyses bloquées ; fiche avec extrait source surligné | 9 + 2 tests unitaires, 10 tests d'intégration (dont import → worker → offre analysée), 4 scénarios e2e |
 
-Dernière exécution locale : `lint` ✓, `typecheck` ✓, `test` 89/89 ✓, `build` ✓, `test:e2e` 20/20 ✓ (bureau et mobile, deux exécutions consécutives). CI GitHub : verte sur T1, T2 ; T4 et T5 à confirmer.
+Dernière exécution locale : `lint` ✓, `typecheck` ✓, `test` 112/112 ✓, `build` ✓, `test:e2e` 22/22 ✓ (bureau et mobile). CI GitHub : verte sur T1, T2, T4 ; T5 et IA multi-fournisseurs à confirmer.
 
 ## En cours
 
@@ -21,13 +22,13 @@ Rien.
 
 ## Pas encore fait
 
-- T5, mesure réelle : le jeu d'évaluation compte 6 offres annotées sur les 30 prévues, et n'a jamais été exécuté contre le modèle (aucune clé). Le critère « ≥ 90 % des exigences obligatoires retrouvées » n'est donc **pas encore vérifié**.
+- T5, mesure réelle : le jeu d'évaluation compte 6 offres annotées sur les 30 prévues, et n'a jamais été exécuté contre un modèle (aucune clé). Le critère « ≥ 90 % des exigences obligatoires retrouvées » n'est donc **pas encore vérifié**, ni pour Claude ni pour les modèles gratuits.
 - T3 Profil maître, T6 à T11.
 - Le tableau de bord affiche un état vide : aucune métrique n'est encore calculée.
 
 ## Aucun appel IA réel effectué
 
-Le client Claude est testé avec un faux client. Aucune clé n'est configurée dans cet environnement et aucun appel payant n'a été fait. Sans clé, le worker laisse les analyses en file (aucun échec artificiel) et la fiche offre l'indique.
+Les clients Claude et compatibles OpenAI sont testés avec un faux client et un faux serveur HTTP local. Aucune clé n'est configurée dans cet environnement et aucun fournisseur réel n'a été appelé. Les sites des fournisseurs n'étaient pas joignables depuis cet environnement : URL d'API, limites gratuites et conditions d'usage des données proviennent de sources secondaires datées d'octobre 2026 et restent **à vérifier** (`npm run llm:check` le fera pour les URL et les modèles). Sans fournisseur actif, le worker laisse les analyses en file et la fiche offre l'indique.
 
 ## Problèmes connus
 
@@ -39,11 +40,12 @@ Le client Claude est testé avec un faux client. Aucune clé n'est configurée d
 ## Décisions en attente de ton arbitrage
 
 1. **Consentement IA pour le CV** : accepter que le contenu du CV (sans coordonnées) soit envoyé à l'API Claude. Bloque T3.
-2. **Clé API et budget** : fournir `ANTHROPIC_API_KEY` dans les secrets de l'environnement ; budget proposé 2 USD par jour (`LLM_DAILY_BUDGET_USD`). Bloque l'exécution réelle de T5, pas son développement.
-3. **Hébergement** : PaaS UE ou Cloud Run + Cloud SQL.
+2. **Clés des fournisseurs gratuits** : créer au moins une clé (Groq et OpenRouter recommandés, voir ci-dessous), choisir un modèle par fournisseur, renseigner `<P>_API_KEY` et `<P>_MODEL` dans les secrets de l'environnement, puis lancer `npm run llm:check`. Bloque l'exécution réelle de T5, pas son développement.
+3. **Données personnelles et offres gratuites** : décider si un fournisseur gratuit peut recevoir ton CV (`<P>_ALLOW_PERSONAL_DATA=true`). Recommandation : non pour Gemini gratuit et Mistral Experiment (réutilisation des données), modèle local ou API payante pour le CV.
+4. **Hébergement** : PaaS UE ou Cloud Run + Cloud SQL.
 
 ## Prochaine étape
 
-1. Dès que la clé est disponible : `npm run eval:offers -- --yes` (6 appels, coût affiché à la fin), puis ajuster le prompt si le rappel est sous 90 %.
+1. Dès qu'une clé est disponible : `npm run llm:check`, puis `npm run eval:offers -- --yes --provider <id>` pour chaque fournisseur (6 requêtes de quota chacun), et ajuster le prompt si le rappel est sous 90 %.
 2. T3 — profil maître (import du CV), après ta décision sur le consentement.
 3. En attendant ces deux points : compléter le jeu d'évaluation à 30 offres et compacter la navigation mobile.

@@ -10,11 +10,15 @@ export const llmCalls = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     purpose: text("purpose").notNull(),
+    /** Fournisseur appelé : anthropic, groq, openrouter, gemini, mistral, cerebras, local… */
+    provider: text("provider").notNull().default("anthropic"),
     model: text("model").notNull(),
     promptVersion: text("prompt_version").notNull(),
     schemaVersion: integer("schema_version").notNull(),
     inputHash: text("input_hash").notNull(),
-    status: text("status", { enum: ["ok", "refused", "truncated", "invalid_output", "api_error", "budget_exceeded"] }).notNull(),
+    status: text("status", {
+      enum: ["ok", "refused", "truncated", "invalid_output", "api_error", "rate_limited", "budget_exceeded", "quota_exhausted", "no_provider"],
+    }).notNull(),
     errorCode: text("error_code"),
     inputTokens: integer("input_tokens").notNull().default(0),
     outputTokens: integer("output_tokens").notNull().default(0),
@@ -24,5 +28,5 @@ export const llmCalls = pgTable(
     latencyMs: integer("latency_ms").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("llm_calls_user_created_idx").on(t.userId, t.createdAt)],
+  (t) => [index("llm_calls_user_created_idx").on(t.userId, t.createdAt), index("llm_calls_provider_created_idx").on(t.provider, t.createdAt)],
 );

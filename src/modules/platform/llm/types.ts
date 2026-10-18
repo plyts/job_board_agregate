@@ -2,11 +2,15 @@ import type { z } from "zod";
 
 export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
 
+/** « personal » : CV, profil, candidatures. Seuls les fournisseurs explicitement autorisés les reçoivent. */
+export type DataClass = "public" | "personal";
+
 export type StructuredRequest<T> = {
   /** Usage métier, ex. « offer.extract ». */
   purpose: string;
   promptVersion: string;
   schemaVersion: number;
+  dataClass: DataClass;
   system: string;
   /** Contenu utilisateur déjà encadré par untrustedDocument() pour les données importées. */
   user: string;
@@ -22,14 +26,33 @@ export type LlmUsage = {
   cacheWriteTokens: number;
 };
 
-export type LlmResult<T> = { output: T; model: string; usage: LlmUsage; latencyMs: number };
+export type LlmResult<T> = {
+  output: T;
+  model: string;
+  usage: LlmUsage;
+  latencyMs: number;
+  /** Coût réel annoncé par le fournisseur, s'il le communique. */
+  reportedCostUsd?: number;
+};
 
 export interface LlmClient {
+  /** Identifiant du fournisseur : « anthropic », « groq », « openrouter »… */
+  readonly provider: string;
   readonly model: string;
   generateStructured<T>(req: StructuredRequest<T>): Promise<LlmResult<T>>;
+  /** Coût estimé d'un usage pour ce client (0 pour une offre gratuite). */
+  estimateCostUsd(model: string, usage: LlmUsage): number;
 }
 
-type LlmErrorCode = "refused" | "truncated" | "invalid_output" | "api_error" | "budget_exceeded";
+export type LlmErrorCode =
+  | "refused"
+  | "truncated"
+  | "invalid_output"
+  | "api_error"
+  | "rate_limited"
+  | "budget_exceeded"
+  | "quota_exhausted"
+  | "no_provider";
 
 export class LlmError extends Error {
   constructor(
@@ -39,6 +62,8 @@ export class LlmError extends Error {
     readonly retryable: boolean,
     readonly usage?: LlmUsage,
     readonly latencyMs?: number,
+    /** Délai demandé par le fournisseur avant un nouvel appel (en-tête retry-after). */
+    readonly retryAfterMs?: number,
   ) {
     super(message);
     this.name = "LlmError";

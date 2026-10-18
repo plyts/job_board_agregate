@@ -128,7 +128,7 @@ export default async function OfferPage(props: PageProps<"/offres/[id]">) {
               {offer.statusReason ??
                 (offer.status === "analyzing"
                   ? "Analyse en cours…"
-                  : "L'analyse est en file d'attente. Elle démarre dès qu'un worker est actif et qu'une clé IA est configurée.")}
+                  : "L'analyse est en file d'attente. Elle démarre dès qu'un worker est actif et qu'un fournisseur IA est configuré.")}
             </p>
           </Panel>
         </div>

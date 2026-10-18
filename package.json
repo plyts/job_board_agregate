@@ -20,7 +20,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "user:create": "tsx scripts/create-user.ts",
     "worker": "JOBPILOT_PROCESS=worker tsx scripts/worker.ts",
-    "eval:offers": "tsx eval/run-offers.ts"
+    "eval:offers": "tsx eval/run-offers.ts",
+    "llm:check": "tsx scripts/llm-check.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",

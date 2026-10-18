@@ -94,6 +94,13 @@ describe("analyse des offres", async () => {
     expect(await findStalledOffers(db, new Date(Date.now() - 15 * 60_000))).toEqual([{ offerId, userId }]);
   });
 
+  it("reporte l'analyse quand les quotas gratuits du jour sont épuisés", async () => {
+    const llm = new FakeLlmClient().failWith(new LlmError("quota_exhausted", "Quotas gratuits du jour épuisés", true));
+    const outcome = await analyzeOffer(deps(llm), { offerId, userId });
+    expect(outcome).toEqual({ kind: "deferred", reason: "Quotas gratuits du jour épuisés : l'analyse reprendra automatiquement." });
+    expect(await getOffer(db, userId, offerId)).toMatchObject({ status: "queued" });
+  });
+
   it("une nouvelle analyse remplace la précédente sans la supprimer", async () => {
     const llm = new FakeLlmClient().respondWith(EXTRACTION).respondWith({ ...EXTRACTION, requirements: EXTRACTION.requirements.slice(0, 2) });
     await analyzeOffer(deps(llm), { offerId, userId });

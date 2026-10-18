@@ -1,9 +1,9 @@
 /**
  * Processus de traitement en arrière-plan : analyses IA et tâches planifiées.
- * Usage : DATABASE_URL=… [ANTHROPIC_API_KEY=…] npm run worker
+ * Usage : DATABASE_URL=… [GROQ_API_KEY=… GROQ_MODEL=…] npm run worker (voir .env.example)
  */
 import { getDb, getPool } from "../src/db/client";
-import { AnthropicLlmClient, createBoss, dailyBudgetUsd, ensureQueues, logger } from "../src/modules/platform";
+import { createBoss, createRouterFromEnv, dailyBudgetUsd, ensureQueues, logger, providerStatuses } from "../src/modules/platform";
 import { startWorker } from "../src/worker";
 
 const url = process.env.DATABASE_URL;
@@ -17,7 +17,7 @@ boss.on("error", (err) => logger.error({ err }, "pg-boss"));
 await boss.start();
 await ensureQueues(boss);
 
-const llm = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN ? new AnthropicLlmClient() : null;
+const llm = createRouterFromEnv();
 await startWorker(boss, { db: getDb(), pool: getPool(), llm, budgetUsd: dailyBudgetUsd() });
 
 async function shutdown(signal: string) {
@@ -28,4 +28,7 @@ async function shutdown(signal: string) {
 }
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
 process.on("SIGINT", () => void shutdown("SIGINT"));
-logger.info({ model: llm?.model ?? null }, "worker démarré");
+logger.info(
+  { providers: providerStatuses().map((p) => ({ id: p.id, enabled: p.enabled, model: p.model, personalData: p.policy.allowsPersonalData })) },
+  "worker démarré",
+);

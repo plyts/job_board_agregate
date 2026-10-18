@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { createDb, createPool } from "../../src/db/client";
-import { jobOffers, loginAttempts } from "../../src/db/schema";
+import { jobOffers, llmCalls, loginAttempts } from "../../src/db/schema";
 import { runMigrations } from "../../src/db/migrate";
 import { analyzeOffer } from "../../src/modules/analysis";
 import { createUser, findUserByEmail } from "../../src/modules/identity";
@@ -19,6 +19,7 @@ export default async function globalSetup() {
     const db = createDb(pool);
     await runMigrations(db);
     const user = (await findUserByEmail(db, E2E_USER.email)) ?? (await createUser(db, E2E_USER));
+    await db.delete(llmCalls).where(eq(llmCalls.userId, user.id));
     // Les échecs volontaires des scénarios précédents ne doivent pas verrouiller le compte.
     await db.delete(loginAttempts).where(eq(loginAttempts.email, E2E_USER.email));
 
@@ -32,7 +33,8 @@ export default async function globalSetup() {
         { kind: "text", text },
       );
       if (!imported.ok) throw new Error(`Préparation e2e : ${imported.message}`);
-      const llm = new FakeLlmClient().respondWith({ ...EXTRACTION, title: analyzedOfferTitle(project) });
+      // Faux client rattaché au fournisseur « local » : aucun coût fictif dans les statistiques.
+      const llm = new FakeLlmClient("modele-e2e", undefined, "local").respondWith({ ...EXTRACTION, title: analyzedOfferTitle(project) });
       await analyzeOffer({ db, pool, llm, budgetUsd: 1000 }, { offerId: imported.offerId, userId: user.id });
     }
   } finally {

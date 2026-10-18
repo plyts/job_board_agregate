@@ -2,7 +2,7 @@
 
 Plateforme personnelle de recherche d'emploi : importer des offres, les analyser, les comparer à un profil professionnel vérifié, adapter et versionner le CV, recontrôler la correspondance, puis suivre chaque candidature jusqu'à la réponse.
 
-> **État : MVP en construction.** Livré : socle, authentification, plateforme (file de tâches, client IA sous budget), import et dédoublonnage des offres. Voir [`docs/PROGRESS.md`](docs/PROGRESS.md).
+> **État : MVP en construction.** Livré : socle, authentification, plateforme (file de tâches, IA multi-fournisseurs dont offres gratuites), import, dédoublonnage et analyse des offres. Voir [`docs/PROGRESS.md`](docs/PROGRESS.md).
 
 ## Démarrage
 
@@ -17,12 +17,16 @@ npm run dev                          # http://localhost:3000
 npm run worker                       # traitements en arrière-plan (autre terminal)
 ```
 
+IA : renseigner au moins un fournisseur dans `.env.local` (par exemple `GROQ_API_KEY` et `GROQ_MODEL`), puis `npm run llm:check`. Les offres gratuites sont essayées avant l'API payante ; voir [`docs/DECISIONS/0006-fournisseurs-ia-multiples.md`](docs/DECISIONS/0006-fournisseurs-ia-multiples.md).
+
 | Commande | Rôle |
 |---|---|
 | `npm run lint` / `typecheck` | Qualité |
 | `npm test` | Tests unitaires et d'intégration (base `DATABASE_URL_TEST`, vidée à chaque test) |
 | `npm run test:e2e` | Parcours Playwright, bureau et mobile (base `jobpilot_e2e`) |
 | `npm run db:generate` | Génère une migration après modification de `src/db/schema` |
+| `npm run llm:check` | Vérifie chaque fournisseur IA configuré (clé, modèle, sortie JSON) |
+| `npm run eval:offers -- --yes [--provider groq]` | Mesure la qualité d'extraction sur le jeu d'évaluation, par fournisseur |
 
 ## Principes non négociables
 

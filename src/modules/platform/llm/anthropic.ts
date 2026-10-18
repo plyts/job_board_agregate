@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import { costUsd } from "./pricing";
 import { LlmError, ZERO_USAGE, type LlmClient, type LlmResult, type LlmUsage, type StructuredRequest } from "./types";
 
 export const DEFAULT_MODEL = "claude-opus-5-5";
@@ -19,6 +20,7 @@ function toUsage(usage: Anthropic.Beta.BetaUsage | undefined): LlmUsage {
  * repli serveur automatique quand un classifieur de sécurité refuse la requête.
  */
 export class AnthropicLlmClient implements LlmClient {
+  readonly provider = "anthropic";
   private readonly client: Anthropic;
 
   constructor(
@@ -27,6 +29,10 @@ export class AnthropicLlmClient implements LlmClient {
   ) {
     // Délai court et 2 nouvelles tentatives SDK (429, 5xx, réseau) ; pg-boss gère les reprises longues.
     this.client = client ?? new Anthropic({ timeout: 120_000, maxRetries: 2 });
+  }
+
+  estimateCostUsd(model: string, usage: LlmUsage): number {
+    return costUsd(model, usage);
   }
 
   async generateStructured<T>(req: StructuredRequest<T>): Promise<LlmResult<T>> {
@@ -46,6 +52,11 @@ export class AnthropicLlmClient implements LlmClient {
       const latencyMs = Date.now() - started;
       if (err instanceof Anthropic.BadRequestError || err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
         throw new LlmError("api_error", `Requête refusée par l'API (${err.status})`, false, undefined, latencyMs);
+      }
+      if (err instanceof Anthropic.RateLimitError) {
+        const raw = err.headers?.get?.("retry-after");
+        const after = raw ? Number(raw) : NaN;
+        throw new LlmError("rate_limited", "Limite de débit atteinte (anthropic)", true, undefined, latencyMs, Number.isFinite(after) ? after * 1000 : undefined);
       }
       if (err instanceof Anthropic.APIError) {
         throw new LlmError("api_error", `Erreur de l'API (${err.status ?? "réseau"})`, true, undefined, latencyMs);

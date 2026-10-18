@@ -16,6 +16,7 @@ const request: StructuredRequest<z.infer<typeof Schema>> = {
   purpose: "test.extract",
   promptVersion: "v1",
   schemaVersion: 1,
+  dataClass: "public",
   system: "Extrait le titre.",
   user: "<document>Data Engineer</document>",
   schema: Schema,

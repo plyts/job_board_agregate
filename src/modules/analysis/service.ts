@@ -5,12 +5,13 @@ import { jobOffers, jobRequirements, llmCalls, offerAnalyses, requirementCorrect
 import { withTransaction } from "@/db/transaction";
 import { provisionalTitle, upsertCompany } from "@/modules/offers";
 import { generateJournaled } from "@/modules/platform/llm/journal";
+import type { LlmRouter } from "@/modules/platform/llm/router";
 import { LlmError, type LlmClient } from "@/modules/platform/llm/types";
 import { buildExtractionUserMessage, EXTRACTION_PROMPT_VERSION, EXTRACTION_SYSTEM } from "./prompt";
 import { EXTRACTION_SCHEMA_VERSION, OfferExtraction } from "./schema";
 import { verifyExtraction } from "./verify";
 
-export type AnalysisDeps = { db: Db; pool: Pool; llm: LlmClient; budgetUsd?: number };
+export type AnalysisDeps = { db: Db; pool: Pool; llm: LlmClient | LlmRouter; budgetUsd?: number };
 
 export type AnalysisOutcome =
   | { kind: "analyzed"; analysisId: string; requirements: number }
@@ -54,6 +55,8 @@ export async function analyzeOffer(
         purpose: "offer.extract",
         promptVersion: EXTRACTION_PROMPT_VERSION,
         schemaVersion: EXTRACTION_SCHEMA_VERSION,
+        // Une annonce publiée est une donnée publique : les offres gratuites peuvent la traiter.
+        dataClass: "public",
         system: EXTRACTION_SYSTEM,
         user: buildExtractionUserMessage(offer.rawText),
         schema: OfferExtraction,
@@ -64,8 +67,11 @@ export async function analyzeOffer(
     );
   } catch (err) {
     if (!(err instanceof LlmError)) throw err;
-    if (err.code === "budget_exceeded") {
-      const reason = "Budget IA du jour atteint : l'analyse reprendra automatiquement.";
+    if (err.code === "budget_exceeded" || err.code === "quota_exhausted") {
+      const reason =
+        err.code === "budget_exceeded"
+          ? "Budget IA du jour atteint : l'analyse reprendra automatiquement."
+          : "Quotas gratuits du jour épuisés : l'analyse reprendra automatiquement.";
       await setStatus(db, offer.id, "queued", reason);
       return { kind: "deferred", reason };
     }

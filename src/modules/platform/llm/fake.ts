@@ -1,4 +1,5 @@
-import { LlmError, ZERO_USAGE, type LlmClient, type LlmResult, type StructuredRequest } from "./types";
+import { costUsd } from "./pricing";
+import { LlmError, ZERO_USAGE, type LlmClient, type LlmResult, type LlmUsage, type StructuredRequest } from "./types";
 
 type Scripted = { output: unknown } | { error: LlmError };
 
@@ -10,7 +11,12 @@ export class FakeLlmClient implements LlmClient {
   constructor(
     readonly model = "claude-opus-5-5",
     private readonly usage = { inputTokens: 2000, outputTokens: 800, cacheReadTokens: 0, cacheWriteTokens: 0 },
+    readonly provider = "anthropic",
   ) {}
+
+  estimateCostUsd(model: string, usage: LlmUsage): number {
+    return this.provider === "anthropic" ? costUsd(model, usage) : 0;
+  }
 
   respondWith(output: unknown): this {
     this.queue.push({ output });

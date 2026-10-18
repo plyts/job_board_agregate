@@ -35,7 +35,7 @@ Monolithe modulaire en TypeScript : une seule base de code, deux processus.
 | Accès BD | Prisma ; Drizzle ; SQL brut | **Drizzle ORM + migrations SQL versionnées** | Moins de magie que Prisma | Équipe plus large habituée à Prisma |
 | Tâches asynchrones | Airflow ; BullMQ + Redis ; pg-boss | **pg-boss** sur PostgreSQL (ADR 0002) | Débit limité (largement suffisant : ~10³ tâches/jour) | > 50 tâches/s soutenues ou DAG complexes |
 | Documents | Disque local ; S3 compatible | **S3 compatible** (disque local en dev, même interface) | Une dépendance de plus en prod | — |
-| IA | Claude ; autre fournisseur ; modèle local | **Claude via SDK officiel**, sorties structurées validées par Zod, derrière une interface `LlmClient` | Dépendance fournisseur | Coût ou qualité insuffisants mesurés sur le jeu d'évaluation |
+| IA | Claude seul ; plusieurs fournisseurs ; modèle local | **Routeur multi-fournisseurs** (ADR 0006) : API compatibles OpenAI (Groq, OpenRouter, Gemini, Mistral, Cerebras, local) et Claude, essayés dans un ordre configurable, sorties validées par Zod | Qualité variable selon le modèle, quotas gratuits | Qualité mesurée insuffisante sur le jeu d'évaluation |
 | Recherche | Postgres full-text ; pgvector ; moteur dédié | **Postgres full-text + trigrammes** au MVP | Pas de sémantique | Mesure sur jeu d'évaluation montrant un gain de rappel (V2 : pgvector) |
 | Export CV | react-pdf ; HTML → PDF via Chromium ; DOCX | **Gabarit HTML → PDF (Chromium) + DOCX (lib `docx`)** | Chromium dans le worker | — |
 | Auth | Auth.js, Better Auth ; sessions en base | **Sessions en base, sans inscription publique** (ADR 0005), cookie `HttpOnly; Secure; SameSite=Lax`, scrypt | Pas d'OAuth ni de MFA au MVP | Passage au multi-utilisateur ou exposition publique |
@@ -87,7 +87,8 @@ L'enregistrement métier et la mise en file se font dans **la même transaction*
 3. **Ancrage** : chaque champ extrait porte un `quote` ; le serveur vérifie que la citation existe réellement dans le texte source (correspondance normalisée), sinon le champ passe en INCERTAIN.
 4. **Matching en deux temps** : règles déterministes (années à partir des dates, lieu, contrat, exclusions) puis jugement du modèle exigence par exigence, avec obligation de citer des identifiants d'éléments du profil. Le **score est calculé par le code** à partir des catégories et des poids.
 5. **Garde-fou CV** : une suggestion doit référencer des éléments du profil ; le serveur rejette toute suggestion qui introduit une compétence, un chiffre, une date ou un niveau absent de ces éléments.
-6. **Traçabilité** : chaque appel est journalisé dans `llm_calls` (modèle, versions de prompt et schéma, tokens, coût, durée, empreinte d'entrée) sans le contenu personnel.
+6. **Traçabilité** : chaque tentative est journalisée dans `llm_calls` (fournisseur, modèle, versions de prompt et schéma, jetons, coût, durée, empreinte d'entrée) sans le contenu.
+7. **Routage** : fournisseurs essayés dans l'ordre de `LLM_PROVIDERS` ; repli sur le suivant en cas de 429, quota journalier atteint, erreur ou sortie invalide ; données personnelles réservées aux fournisseurs autorisés.
 
 ## Observabilité
 

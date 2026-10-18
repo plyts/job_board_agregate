@@ -50,6 +50,7 @@ export function SideNav({ userLabel, logout }: { userLabel?: string; logout?: Re
       </Link>
       <Section title="Pilotage" items={NAV_ITEMS.filter((i) => i.section === "pilotage")} pathname={pathname} />
       <Section title="Travail" items={NAV_ITEMS.filter((i) => i.section === "travail")} pathname={pathname} />
+      <Section title="Réglages" items={NAV_ITEMS.filter((i) => i.section === "reglages")} pathname={pathname} />
       {userLabel ? (
         <div className="mt-auto flex items-center justify-between gap-2 px-1.5">
           <span className="truncate text-sm font-semibold">{userLabel}</span>

@@ -45,7 +45,7 @@ llm_calls (journal de tous les appels IA)
 | `application_events` | `application_id`, `type`, `from_status`, `to_status`, `payload jsonb`, `occurred_at` | Append-only (trigger) ; source unique des métriques |
 | `board_columns` | `key`, `label`, `position`, `maps_to_status` | Les 12 statuts par défaut sont créés à l'inscription |
 | `sync_runs` | `source_id`, `started_at`, `finished_at`, `status`, `fetched`, `new`, `duplicates`, `errors jsonb` | — |
-| `llm_calls` | `purpose`, `model`, `prompt_version`, `schema_version`, `input_hash`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `cost_usd`, `latency_ms`, `status` (ok, refused, truncated, invalid_output, api_error, budget_exceeded), `error_code` | Aucun contenu personnel stocké ; coûts en USD (tarifs publics), sans conversion inventée |
+| `llm_calls` | `purpose`, `provider`, `model`, `prompt_version`, `schema_version`, `input_hash`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `cost_usd`, `latency_ms`, `status` (ok, refused, truncated, invalid_output, api_error, rate_limited, budget_exceeded), `error_code` | Une ligne par tentative et par fournisseur ; aucun contenu stocké ; coûts en USD (0 pour une offre gratuite), sans conversion inventée. Base des quotas journaliers par fournisseur |
 | `users`, `sessions`, `login_attempts` | voir ADR 0005 | `sessions.id` = SHA-256 du jeton |
 
 ## Dédoublonnage
@@ -57,7 +57,7 @@ llm_calls (journal de tous les appels IA)
 
 ## État réel des tables
 
-Créées à ce jour (migrations `drizzle/0000` à `0002`) : `users`, `sessions`, `login_attempts`, `llm_calls`, `companies`, `job_offers`, `offer_imports`. Les autres tables de ce document restent à créer avec leur module.
+Créées à ce jour (migrations `drizzle/0000` à `0004`) : `users`, `sessions`, `login_attempts`, `llm_calls`, `companies`, `job_offers`, `offer_imports`, `offer_analyses`, `job_requirements`, `requirement_corrections`. Les autres tables de ce document restent à créer avec leur module.
 
 ## Migrations
 

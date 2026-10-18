@@ -19,6 +19,7 @@
 - Données : CV, coordonnées, historique de candidatures, contacts de recruteurs (saisis manuellement).
 - Base légale : usage personnel ; consentement explicite avant le premier envoi de contenu au fournisseur IA, révocable.
 - Minimisation : coordonnées retirées du texte envoyé au modèle ; logs sans contenu personnel.
+- Fournisseurs IA : chaque requête est classée `public` (annonce) ou `personal` (CV, candidature). Une donnée personnelle n'est envoyée qu'à un fournisseur explicitement autorisé (`<P>_ALLOW_PERSONAL_DATA=true`) ; refus par défaut, sauf modèle local. Plusieurs offres gratuites réutilisent les contenus (ADR 0006).
 - Hébergement et fournisseur IA en UE ou avec garanties contractuelles, à confirmer.
 - Export complet (JSON + fichiers) et suppression complète du compte disponibles.
 - Sauvegardes chiffrées quotidiennes, rétention 30 jours, restauration testée.

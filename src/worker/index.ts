@@ -4,11 +4,12 @@ import { z } from "zod";
 import type { Db } from "@/db/client";
 import { analyzeOffer, findStalledOffers } from "@/modules/analysis";
 import { analysisJobOptions, logger, SCHEDULES } from "@/modules/platform";
+import type { LlmRouter } from "@/modules/platform/llm/router";
 import type { LlmClient } from "@/modules/platform/llm/types";
 
 const AnalyzeJob = z.object({ offerId: z.uuid(), userId: z.uuid() });
 
-export type WorkerDeps = { db: Db; pool: Pool; llm: LlmClient | null; budgetUsd?: number };
+export type WorkerDeps = { db: Db; pool: Pool; llm: LlmClient | LlmRouter | null; budgetUsd?: number };
 
 /** Branche les traitements sur les files. Sans client IA, les analyses restent en file (aucun échec artificiel). */
 export async function startWorker(boss: PgBoss, deps: WorkerDeps): Promise<void> {
@@ -28,7 +29,7 @@ export async function startWorker(boss: PgBoss, deps: WorkerDeps): Promise<void>
       logger.info({ jobId: job.id, offerId: data.data.offerId, outcome: outcome.kind, ms: Date.now() - started }, "analyse d'offre");
     });
   } else {
-    logger.warn("Aucune clé IA configurée : les analyses d'offres restent en file.");
+    logger.warn("Aucun fournisseur IA configuré : les analyses d'offres restent en file.");
   }
 
   await boss.work("offer.resume", async () => {

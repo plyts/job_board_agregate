@@ -3,7 +3,10 @@ export { analysisJobOptions, createBoss, ensureQueues, getBoss, QUEUES, SCHEDULE
 export { getStorage, LocalFsStorage, type ObjectStorage } from "./storage";
 export { AnthropicLlmClient, DEFAULT_MODEL } from "./llm/anthropic";
 export { FakeLlmClient } from "./llm/fake";
-export { generateJournaled, spentTodayUsd, dailyBudgetUsd } from "./llm/journal";
+export { generateJournaled, providerCallsToday, providerUsageToday, spentTodayUsd, dailyBudgetUsd, type ProviderUsage } from "./llm/journal";
+export { OpenAICompatibleLlmClient } from "./llm/openai-compatible";
+export { createRouterFromEnv, providerStatuses, PROVIDER_PRESETS, type ProviderStatus } from "./llm/providers";
+export { LlmRouter } from "./llm/router";
 export { costUsd } from "./llm/pricing";
 export { untrustedDocument, UNTRUSTED_DATA_RULE } from "./llm/untrusted";
-export { LlmError, type LlmClient, type StructuredRequest } from "./llm/types";
+export { LlmError, type DataClass, type LlmClient, type StructuredRequest } from "./llm/types";
