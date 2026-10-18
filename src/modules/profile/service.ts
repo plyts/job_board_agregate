@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, inArray, lt, max, notInArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, lt, max, notInArray, or } from "drizzle-orm";
 import type { Pool } from "pg";
 import type { Db } from "@/db/client";
 import { profileVersions, type ProfileUncertainty } from "@/db/schema";
@@ -10,7 +10,8 @@ import type { LlmRouter } from "@/modules/platform/llm/router";
 import type { ObjectStorage } from "@/modules/platform/storage";
 import { LlmError, type LlmClient } from "@/modules/platform/llm/types";
 import { profileQuality } from "@/modules/cv/quality";
-import { emptyProfile, ProfileContent, validationProblems } from "./content";
+import { mergeCounts, PII_LABELS, PII_RULES_VERSION, redactPii, restorePlaceholders, type PrivacyReport } from "@/modules/privacy/pii";
+import { emptyProfile, newElementId, ProfileContent, validationProblems } from "./content";
 import {
   buildProfileUserMessage,
   PROFILE_PROMPT_VERSION,
@@ -18,7 +19,6 @@ import {
   PROFILE_SYSTEM,
   ProfileExtraction,
   readCvFile,
-  redactContacts,
   toProfileContent,
 } from "./extract";
 
@@ -143,8 +143,43 @@ export async function validateDraft(db: Db, userId: string): Promise<ValidateRes
   return { ok: true, version: draft.version };
 }
 
-export async function discardDraft(db: Db, userId: string): Promise<void> {
-  await db.delete(profileVersions).where(and(eq(profileVersions.userId, userId), eq(profileVersions.status, "draft")));
+/** Supprime le brouillon et, s'il venait d'un import, le fichier CV stocké (aucune copie orpheline). */
+export async function discardDraft(deps: { db: Db; storage: ObjectStorage }, userId: string): Promise<void> {
+  const rows = await deps.db
+    .delete(profileVersions)
+    .where(and(eq(profileVersions.userId, userId), eq(profileVersions.status, "draft")))
+    .returning({ key: profileVersions.sourceFileKey });
+  for (const r of rows) if (r.key) await deps.storage.delete(r.key).catch(() => {});
+}
+
+/**
+ * Conservation limitée (RGPD, minimisation) : le texte et le fichier du CV importé ne servent plus une fois
+ * la version validée ; ils sont effacés après `days` jours. Le profil validé, lui, ne change pas.
+ */
+export async function purgeImportedSources(deps: { db: Db; storage: ObjectStorage }, days: number, now = new Date()): Promise<number> {
+  const before = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  const rows = await deps.db
+    .select({ id: profileVersions.id, key: profileVersions.sourceFileKey })
+    .from(profileVersions)
+    .where(
+      and(
+        eq(profileVersions.status, "validated"),
+        lt(profileVersions.validatedAt, before),
+        or(isNotNull(profileVersions.sourceText), isNotNull(profileVersions.sourceFileKey)),
+      ),
+    )
+    .limit(200);
+  for (const r of rows) {
+    if (r.key) await deps.storage.delete(r.key).catch(() => {});
+    await deps.db.update(profileVersions).set({ sourceText: null, sourceFileKey: null }).where(eq(profileVersions.id, r.id));
+  }
+  return rows.length;
+}
+
+/** Durée de conservation du CV source après validation, en jours (`CV_SOURCE_RETENTION_DAYS`, 30 par défaut). */
+export function sourceRetentionDays(env: Record<string, string | undefined> = process.env): number {
+  const n = Number(env.CV_SOURCE_RETENTION_DAYS ?? 30);
+  return Number.isInteger(n) && n >= 0 && n <= 3650 ? n : 30;
 }
 
 export type ProfileDeps = {
@@ -157,7 +192,7 @@ export type ProfileDeps = {
 export type ImportCvResult = { ok: true; versionId: string } | { ok: false; error: string };
 
 /** Importe un CV : lecture du fichier, création d'un brouillon et mise en file de l'extraction, atomiquement. */
-export async function importCv(deps: ProfileDeps, userId: string, bytes: Buffer): Promise<ImportCvResult> {
+export async function importCv(deps: ProfileDeps, userId: string, bytes: Buffer, opts: { declaredName?: string } = {}): Promise<ImportCvResult> {
   if (await getDraft(deps.db, userId)) {
     return { ok: false, error: "Un brouillon est déjà en cours : valide-le ou supprime-le avant d'importer un nouveau CV." };
   }
@@ -168,6 +203,7 @@ export async function importCv(deps: ProfileDeps, userId: string, bytes: Buffer)
     if (err instanceof FileImportError) return { ok: false, error: err.message };
     throw err;
   }
+  const current = await getCurrentProfile(deps.db, userId);
   const key = `${userId}/cv/${randomUUID()}.${file.extension}`;
   await deps.storage.put(key, bytes);
   try {
@@ -178,7 +214,8 @@ export async function importCv(deps: ProfileDeps, userId: string, bytes: Buffer)
           userId,
           version: await nextVersion(tx.db, userId),
           status: "draft",
-          content: emptyProfile(),
+          // Nom déclaré ou déjà connu : sert à masquer l'identité avant l'envoi à l'IA.
+          content: { ...emptyProfile(), identity: { ...emptyProfile().identity, fullName: opts.declaredName || current?.content.identity.fullName || "" } },
           origin: "import",
           importStatus: "queued",
           sourceFileKey: key,
@@ -231,7 +268,11 @@ export async function extractProfile(
   if (version.importStatus === "extracted") return { kind: "skipped" };
 
   await setImport(db, version.id, "extracting", null);
-  const { redacted, email, phone } = redactContacts(version.sourceText);
+  // Avant : masquage local de toutes les données personnelles du CV (en-tête compris) ; noms connus en renfort.
+  const current = await getCurrentProfile(db, job.userId);
+  const knownNames = [version.content.identity.fullName, current?.content.identity.fullName];
+  const local = redactPii(version.sourceText, { cv: true, names: knownNames });
+  const names = [...knownNames, local.found.name];
   let result;
   try {
     result = await generateJournaled(
@@ -244,7 +285,8 @@ export async function extractProfile(
         schemaVersion: PROFILE_SCHEMA_VERSION,
         dataClass: "personal",
         system: PROFILE_SYSTEM,
-        user: buildProfileUserMessage(redacted),
+        user: buildProfileUserMessage(local.text),
+        privacy: { names },
         schema: ProfileExtraction,
         maxTokens: 16000,
         effort: "medium",
@@ -260,7 +302,7 @@ export async function extractProfile(
     }
     if (err.code === "no_provider") {
       const reason =
-        "Aucun fournisseur IA n'est autorisé à recevoir ton CV. Saisis ton profil manuellement, ou autorise un fournisseur (modèle local recommandé).";
+        "Aucun fournisseur IA n'est autorisé et consenti pour recevoir ton CV masqué. Saisis ton profil manuellement, ou configure un modèle local (recommandé) ou donne ton consentement à un fournisseur dans Fournisseurs IA.";
       await setImport(db, version.id, "failed", reason);
       return { kind: "failed", reason };
     }
@@ -272,7 +314,26 @@ export async function extractProfile(
     await setImport(db, version.id, "failed", reason);
     return { kind: "failed", reason };
   }
-  const { content, uncertainties } = toProfileContent(result.output, version.sourceText, { email, phone });
-  await setImport(db, version.id, "extracted", null, { content, uncertainties: uncertainties as ProfileUncertainty[] });
+  const extracted = toProfileContent(result.output, version.sourceText, { email: local.found.email, phone: local.found.phone });
+  // Après : identité réinjectée localement ; une balise reprise par le modèle est signalée à vérifier.
+  // Le nom déclaré à l'import (ou celui du profil) prime sur le nom deviné dans l'en-tête.
+  const identityName = knownNames.find((n) => n && n.trim()) ?? local.found.name ?? null;
+  const restored = restorePlaceholders(extracted.content, identityName);
+  const content = restored.value;
+  if (identityName) content.identity.fullName = identityName;
+  else if (content.identity.fullName.includes("[CANDIDAT]")) content.identity.fullName = "";
+  const uncertainties = [
+    ...extracted.uncertainties,
+    ...restored.leftovers.map((c) => ({ id: newElementId(), field: "Données masquées", note: `Le modèle a repris une balise « ${PII_LABELS[c]} » : vérifie le champ concerné.` })),
+    ...(identityName ? [] : [{ id: newElementId(), field: "Identité", note: "Nom non reconnu dans le CV : saisis-le." }]),
+  ];
+  const privacyReport: PrivacyReport = {
+    rulesVersion: PII_RULES_VERSION,
+    before: mergeCounts(local.counts, result.privacy?.masked),
+    after: result.privacy?.inOutput ?? {},
+    sensitive: (local.counts.sensitive ?? 0) > 0,
+    sentChars: local.text.length,
+  };
+  await setImport(db, version.id, "extracted", null, { content, uncertainties: uncertainties as ProfileUncertainty[], privacyReport });
   return { kind: "extracted", uncertainties: uncertainties.length };
 }

@@ -120,6 +120,20 @@
       "when": 1792345669182,
       "tag": "0016_contacts-and-letters",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792359483768,
+      "tag": "0017_privacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792359484758,
+      "tag": "0018_profile-source-purge",
+      "breakpoints": true
     }
   ]
 }

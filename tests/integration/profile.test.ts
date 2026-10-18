@@ -106,7 +106,7 @@ describe("profil maître", async () => {
     expect(draft?.sourceText).toContain("Camille Martin");
     expect(await saveDraft(db, userId, draft!.content)).toMatchObject({ ok: false });
     expect(await importCv(deps(), userId, pdf)).toMatchObject({ ok: false });
-    await discardDraft(db, userId);
+    await discardDraft({ db, storage: new LocalFsStorage("/tmp/jobpilot-unused") }, userId);
     expect(await getDraft(db, userId)).toBeNull();
   });
 

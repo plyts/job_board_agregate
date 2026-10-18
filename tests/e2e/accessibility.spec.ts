@@ -60,6 +60,8 @@ test("écrans du parcours critique : aucune violation WCAG 2.2 AA détectée", a
   found.push(...(await audit(page, "profil maître")));
   await page.goto("/reglages/ia");
   found.push(...(await audit(page, "fournisseurs IA")));
+  await page.goto("/reglages/confidentialite");
+  found.push(...(await audit(page, "confidentialité")));
 
   expect(found).toEqual([]);
 });

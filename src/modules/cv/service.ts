@@ -285,6 +285,7 @@ export async function generateSuggestions(
           profile,
         ),
         schema: SuggestionBatch,
+        privacy: { names: [profile.identity.fullName] },
         maxTokens: 8000,
         effort: "medium",
       },
@@ -298,7 +299,7 @@ export async function generateSuggestions(
       return { kind: "deferred", reason };
     }
     if (err.code === "no_provider") {
-      const reason = "Aucun fournisseur IA n'est autorisé à recevoir ton CV : tu peux l'adapter toi-même dans l'éditeur.";
+      const reason = "Aucun fournisseur IA n'est autorisé et consenti pour recevoir ton CV masqué : tu peux l'adapter toi-même dans l'éditeur.";
       await setStatus("failed", reason);
       return { kind: "failed", reason };
     }

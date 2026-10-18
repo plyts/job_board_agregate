@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { index, integer, jsonb, pgEnum, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { QualityReport } from "@/modules/cv/quality";
 import type { ProfileContent } from "@/modules/profile/content";
+import type { PrivacyReport } from "@/modules/privacy/pii";
 import { users } from "./identity";
 
 export const profileVersionStatus = pgEnum("profile_version_status", ["draft", "validated"]);
@@ -25,6 +26,8 @@ export const profileVersions = pgTable(
     content: jsonb("content").$type<ProfileContent>().notNull(),
     /** Rapport de bonnes pratiques figé à la validation (avec la version des règles). */
     quality: jsonb("quality").$type<QualityReport>(),
+    /** Confidentialité de l'import : données masquées avant l'IA et retirées de sa réponse (décomptes seulement). */
+    privacyReport: jsonb("privacy_report").$type<PrivacyReport>(),
     /** Points à vérifier avant validation (extraction ambiguë, élément absent du CV source…). */
     uncertainties: jsonb("uncertainties").$type<ProfileUncertainty[]>().notNull().default([]),
     origin: text("origin", { enum: ["manual", "import", "edit"] }).notNull(),

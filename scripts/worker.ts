@@ -3,7 +3,7 @@
  * Usage : DATABASE_URL=… [GROQ_API_KEY=… GROQ_MODEL=…] npm run worker (voir .env.example)
  */
 import { getDb, getPool } from "../src/db/client";
-import { createBoss, createRouterFromEnv, dailyBudgetUsd, ensureQueues, logger, providerStatuses } from "../src/modules/platform";
+import { createBoss, createRouterFromEnv, dailyBudgetUsd, ensureQueues, getStorage, logger, providerStatuses } from "../src/modules/platform";
 import { startWorker } from "../src/worker";
 
 const url = process.env.DATABASE_URL;
@@ -18,7 +18,7 @@ await boss.start();
 await ensureQueues(boss);
 
 const llm = createRouterFromEnv();
-await startWorker(boss, { db: getDb(), pool: getPool(), llm, budgetUsd: dailyBudgetUsd() });
+await startWorker(boss, { db: getDb(), pool: getPool(), llm, budgetUsd: dailyBudgetUsd(), storage: getStorage() });
 
 async function shutdown(signal: string) {
   logger.info({ signal }, "arrêt du worker");

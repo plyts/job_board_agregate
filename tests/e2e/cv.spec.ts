@@ -19,7 +19,7 @@ test("adapter le CV : suggestions sourcées, contrôle des faits, recontrôle, f
 
   // Suggestions : une fidèle à décider, une bloquée par le garde-fou avec sa raison.
   const suggestions = page.getByRole("region", { name: "Suggestions" });
-  await expect(suggestions.getByText(/aucun fournisseur IA n'est autorisé à recevoir ton CV/i)).toBeVisible();
+  await expect(suggestions.getByText(/aucun fournisseur IA n'est autorisé et consenti pour recevoir ton CV/i)).toBeVisible();
   const pending = suggestions.getByRole("listitem", { name: "Reformulation — À décider" });
   const blocked = suggestions.getByRole("listitem", { name: "Reformulation — Bloquée" });
   await expect(blocked).toContainText("« dbt » est ajouté sans preuve dans la source");

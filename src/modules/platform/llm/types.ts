@@ -17,6 +17,8 @@ export type StructuredRequest<T> = {
   schema: z.ZodType<T>;
   maxTokens?: number;
   effort?: Effort;
+  /** Données personnelles : noms connus du candidat, masqués en plus des motifs génériques. */
+  privacy?: { names?: (string | null | undefined)[] };
 };
 
 export type LlmUsage = {

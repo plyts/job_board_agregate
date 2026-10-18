@@ -132,6 +132,7 @@ export async function computeMatch(
             dataClass: "personal",
             system: MATCH_SYSTEM,
             user: buildMatchUserMessage(toJudge, subject),
+            privacy: { names: [subject.identity.fullName] },
             schema: MatchJudgement,
             maxTokens: 16000,
             effort: "medium",

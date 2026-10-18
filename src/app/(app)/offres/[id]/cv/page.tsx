@@ -19,7 +19,7 @@ import { currentRequirements, getCvDraft, getCvVersion, lineDiff, listCvVersions
 import { cvQuality } from "@/modules/cv/quality";
 import { getCurrentMatch } from "@/modules/matching";
 import { getOffer } from "@/modules/offers";
-import { providerStatuses } from "@/modules/platform";
+import { personalDataProviders } from "@/modules/privacy";
 import { getCurrentProfile, getVersion } from "@/modules/profile";
 import { resetCvFromProfileAction, restoreCvVersionAction, startCvDraftAction } from "./actions";
 
@@ -94,7 +94,7 @@ export default async function CvPage(props: PageProps<"/offres/[id]/cv">) {
   // Les coordonnées ne sont pas utiles à l'éditeur : elles restent côté serveur.
   const profile = { ...base.content, identity: { ...base.content.identity, email: null, phone: null } };
   const categories = new Map(match?.items.map(({ item }) => [item.requirementId, item.category]) ?? []);
-  const aiAvailable = providerStatuses().some((p) => p.enabled && p.policy.allowsPersonalData);
+  const aiAvailable = (await personalDataProviders(db, user.id)).usable.length > 0;
   const comparedId = typeof search.comparer === "string" ? search.comparer : null;
   const compared = comparedId ? await getCvVersion(db, user.id, comparedId) : null;
   const comparedBase = compared && compared.offerId === offer.id ? await getVersion(db, user.id, compared.baseProfileVersionId) : null;

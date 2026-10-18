@@ -7,5 +7,6 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/candidatures", label: "Candidatures", section: "travail" },
   { href: "/profil", label: "Profil maître", section: "travail" },
   { href: "/reglages/ia", label: "Fournisseurs IA", section: "reglages" },
+  { href: "/reglages/confidentialite", label: "Confidentialité", section: "reglages" },
   { href: "/reglages/compte", label: "Mon compte", section: "reglages" },
 ];

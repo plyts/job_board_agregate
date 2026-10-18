@@ -2,6 +2,7 @@ import { eq, inArray, isNotNull, and } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
 import type { Db } from "@/db/client";
 import {
+  aiConsents,
   applicationContacts,
   applicationDocuments,
   applicationEvents,
@@ -73,10 +74,11 @@ export async function exportAccount(deps: AccountDeps, userId: string, now = new
     applicationContacts: await db.select().from(applicationContacts).where(by(applicationContacts)),
     // Journal des appels IA : métadonnées seulement (aucun contenu n'y est jamais stocké).
     llmCalls: await db.select().from(llmCalls).where(by(llmCalls)),
+    aiConsents: await db.select().from(aiConsents).where(by(aiConsents)),
   };
   const files: Record<string, Uint8Array> = {
     "LISEZ-MOI.txt": strToU8(
-      "Export JobPilot : donnees.json contient toutes tes données (offres, analyses, profil maître et ses versions, CV personnalisés, matchings, candidatures, événements, contacts, journal des appels IA sans contenu). Le dossier fichiers/ contient les fichiers stockés (CV importés, offres en fichier, documents réellement envoyés).\n",
+      "Export JobPilot : donnees.json contient toutes tes données (offres, analyses, profil maître et ses versions, CV personnalisés, matchings, candidatures, événements, contacts, journal des appels IA sans contenu, consentements IA datés). Le dossier fichiers/ contient les fichiers stockés (CV importés, offres en fichier, documents réellement envoyés).\n",
     ),
     "donnees.json": strToU8(JSON.stringify(data, null, 2)),
   };

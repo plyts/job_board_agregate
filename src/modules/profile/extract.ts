@@ -8,7 +8,7 @@ import type { ProfileUncertainty } from "@/db/schema";
 import { emptyProfile, newElementId, SKILL_LEVELS, type ProfileContent } from "./content";
 
 export const MAX_CV_BYTES = 10 * 1024 * 1024;
-export const PROFILE_PROMPT_VERSION = "profile-extract-v1";
+export const PROFILE_PROMPT_VERSION = "profile-extract-v2";
 export const PROFILE_SCHEMA_VERSION = 1;
 
 export type CvFile = { text: string; extension: "pdf" | "docx" };
@@ -41,26 +41,6 @@ export async function readCvFile(bytes: Buffer): Promise<CvFile> {
     throw new FileImportError("empty", extension === "pdf" ? "Aucun texte trouvé : le PDF est peut-être une image scannée" : "Document vide");
   }
   return { text: cleaned, extension };
-}
-
-const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
-// Numéros français et internationaux (+33 6 12 34 56 78, 06.12.34.56.78, +1 415 555 0100…).
-const PHONE = /(?:\+\d{1,3}[\s.-]?)?(?:\(?\d{1,4}\)?[\s.-]?){3,5}\d{2,4}/g;
-
-/**
- * Retire e-mails et téléphones avant tout envoi à un modèle (minimisation) ; ils sont relevés localement.
- */
-export function redactContacts(text: string): { redacted: string; email: string | null; phone: string | null } {
-  const email = text.match(EMAIL)?.[0] ?? null;
-  let phone: string | null = null;
-  const redacted = text.replace(EMAIL, "[e-mail]").replace(PHONE, (m) => {
-    const digits = m.replace(/\D/g, "");
-    // Une suite d'années (« 2019 – 2021 2022 ») n'est pas un numéro.
-    if (digits.length < 9 || digits.length > 15 || /^(?:(?:19|20)\d{2}[\s.-]*)+$/.test(m.trim())) return m;
-    phone ??= m.trim();
-    return "[téléphone]";
-  });
-  return { redacted, email, phone };
 }
 
 const Month = z.string().nullable().describe("Format AAAA-MM, null si inconnu");
@@ -112,7 +92,8 @@ Règles :
   "unconfirmed" si elle est seulement listée sans élément qui la démontre. Pour chaque compétence, cite dans evidence
   les expériences, projets, formations ou certifications qui la démontrent ; liste vide si aucune.
 - Signale dans uncertainties tout point ambigu (date illisible, poste peut-être terminé, intitulé incertain).
-- Les coordonnées ont été masquées : ne les reconstitue pas.
+- Les données personnelles ont été remplacées localement par des balises ([CANDIDAT], [E-MAIL], [TÉLÉPHONE], [ADRESSE]…) :
+  ne les reconstitue pas et ne les recopie pas ; mets "[CANDIDAT]" dans fullName.
 
 ${UNTRUSTED_DATA_RULE}`;
 

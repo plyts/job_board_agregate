@@ -1,4 +1,4 @@
-export { login, MAX_FAILED_ATTEMPTS, type LoginResult } from "./login";
+export { login, MAX_FAILED_ATTEMPTS, purgeLoginAttempts, type LoginResult } from "./login";
 export { hashPassword, verifyPassword, PASSWORD_MIN_LENGTH } from "./password";
 export {
   createSession,

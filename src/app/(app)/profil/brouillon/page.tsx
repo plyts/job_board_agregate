@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { PrivacyReportPanel } from "@/components/privacy/PrivacyReportPanel";
 import { ProfileEditor } from "@/components/profile/ProfileEditor";
 import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
@@ -8,7 +9,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
-import { providerStatuses } from "@/modules/platform";
+import { personalDataProviders, redactPii } from "@/modules/privacy";
 import { getDraft } from "@/modules/profile";
 import { resolveUncertaintyAction } from "../actions";
 
@@ -19,7 +20,9 @@ export default async function DraftPage() {
   const draft = await getDraft(getDb(), user.id);
   if (!draft) redirect("/profil");
   const extracting = draft.importStatus === "queued" || draft.importStatus === "extracting";
-  const personalProviders = providerStatuses().filter((p) => p.enabled && p.policy.allowsPersonalData);
+  const { usable: personalProviders, awaitingConsent } = await personalDataProviders(getDb(), user.id);
+  // Texte masqué recalculé localement, tant que le texte source est conservé.
+  const masked = draft.sourceText ? redactPii(draft.sourceText, { cv: true, names: [draft.content.identity.fullName] }).text : null;
 
   return (
     <>
@@ -47,17 +50,24 @@ export default async function DraftPage() {
           {draft.importReason ? <p className="text-sm leading-6">{draft.importReason}</p> : null}
           {extracting && personalProviders.length === 0 ? (
             <p className="text-sm leading-6 text-muted-foreground">
-              Aucun fournisseur IA n&apos;est autorisé à recevoir ton CV : l&apos;extraction ne démarrera pas. Supprime ce brouillon et saisis ton profil manuellement, ou autorise un fournisseur (voir Fournisseurs IA).
+              Aucun fournisseur IA n&apos;est autorisé et consenti pour recevoir ton CV masqué : l&apos;extraction ne démarrera pas.{" "}
+              {awaitingConsent.length
+                ? `Tu peux donner ton consentement à ${awaitingConsent.map((p) => p.label).join(", ")} dans `
+                : "Saisis ton profil manuellement, ou configure un fournisseur dans "}
+              <Link href="/reglages/ia">Fournisseurs IA</Link>.
             </p>
           ) : null}
           {draft.sourceText ? (
             <details>
-              <summary className="cursor-pointer text-sm font-semibold text-accent">Texte extrait du CV</summary>
-              <p className="mt-2 max-h-80 overflow-y-auto whitespace-pre-wrap rounded-md bg-background p-3 font-mono text-xs leading-5">{draft.sourceText}</p>
+              <summary className="cursor-pointer text-sm font-semibold text-accent">Texte extrait du CV (non masqué, reste sur ton serveur)</summary>
+              <p tabIndex={0} className="mt-2 max-h-80 overflow-y-auto whitespace-pre-wrap rounded-md bg-background p-3 font-mono text-xs leading-5">
+                {draft.sourceText}
+              </p>
             </details>
           ) : null}
         </Panel>
       ) : null}
+      {draft.origin === "import" ? <PrivacyReportPanel report={draft.privacyReport} maskedText={masked} /> : null}
 
       {draft.uncertainties.length > 0 ? (
         <Panel aria-label="Points à vérifier" className="flex flex-col gap-2 border-signal">

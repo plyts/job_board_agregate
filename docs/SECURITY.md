@@ -16,10 +16,12 @@
 
 ## Données personnelles (RGPD)
 
+Registre des traitements, transferts, durées de conservation et droits : `docs/RGPD.md`. En résumé :
+
 - Données : CV, coordonnées, historique de candidatures, lettres de motivation, contacts de recruteurs (données de tiers, saisies manuellement, jamais envoyées à un modèle, liens limités à http/https).
-- Base légale : usage personnel ; consentement explicite avant le premier envoi de contenu au fournisseur IA, révocable.
-- Minimisation : coordonnées retirées du texte envoyé au modèle (extraction, matching, suggestions de CV) et du profil transmis à l'éditeur dans le navigateur ; elles ne figurent que dans les exports PDF/DOCX, servis en pièce jointe, `Cache-Control: private, no-store`, à leur seul propriétaire ; logs sans contenu personnel.
-- Fournisseurs IA : chaque requête est classée `public` (annonce) ou `personal` (CV, candidature). Une donnée personnelle n'est envoyée qu'à un fournisseur explicitement autorisé (`<P>_ALLOW_PERSONAL_DATA=true`) ; refus par défaut, sauf modèle local. Plusieurs offres gratuites réutilisent les contenus (ADR 0006).
-- Hébergement et fournisseur IA en UE ou avec garanties contractuelles, à confirmer.
-- Export complet (ZIP : JSON et fichiers, sans secret) et suppression définitive du compte (confirmée par e-mail et mot de passe), dans « Réglages › Mon compte ».
+- Masquage avant et après chaque appel IA portant des données personnelles (`src/modules/privacy/pii.ts`, appliqué dans `generateJournaled`, sans contournement possible par un module métier) : identité, coordonnées, adresse, naissance, âge, nationalité, situation familiale, NIR, IBAN, liens personnels et données sensibles (art. 9) remplacés par une étiquette ; même inspection sur la réponse ; identité réinjectée localement. Le texte masqué envoyé est montré à l'import.
+- Envoi à un fournisseur externe seulement s'il est autorisé par la configuration (`<P>_ALLOW_PERSONAL_DATA=true`, refus par défaut sauf modèle local) **et** consenti par l'utilisateur (table `ai_consents`, retrait à tout moment). Le masquage est une pseudonymisation, pas une anonymisation : d'où le consentement.
+- Conservation limitée : CV importé effacé 30 jours après validation (`CV_SOURCE_RETENTION_DAYS`), brouillon abandonné effacé avec son fichier, sessions expirées et tentatives de connexion purgées, sauvegardes 30 jours.
+- Exports PDF/DOCX servis en pièce jointe, `Cache-Control: private, no-store`, à leur seul propriétaire ; logs sans contenu personnel ; journal IA sans contenu (décomptes de masquage seulement).
+- Export complet (ZIP : JSON et fichiers, consentements compris, sans secret) et suppression définitive du compte (confirmée par e-mail et mot de passe), dans « Réglages › Mon compte ». Page « Réglages › Confidentialité » : masquage, consentements, envois par fournisseur et lieu de traitement, durées, droits.
 - Sauvegardes : `scripts/backup.sh` (base et fichiers, AES-256, rétention 30 jours, à planifier chaque jour) ; restauration vérifiée par `npm run backup:check` (lignes et fichiers identiques). Voir `docs/OPERATIONS.md`.

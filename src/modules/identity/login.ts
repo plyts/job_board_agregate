@@ -1,4 +1,4 @@
-import { and, count, eq, gt } from "drizzle-orm";
+import { and, count, eq, gt, lt } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { loginAttempts } from "@/db/schema";
 import { getDummyHash, verifyPassword } from "./password";
@@ -36,4 +36,13 @@ export async function login(db: Db, rawEmail: string, password: string, now = ne
   if (!user || !valid) return { ok: false, reason: "invalid_credentials" };
   const { token, expiresAt } = await createSession(db, user.id, now);
   return { ok: true, token, expiresAt, userId: user.id };
+}
+
+/** Minimisation : les tentatives de connexion ne servent qu'au verrouillage (15 min) ; effacées après 30 jours. */
+export async function purgeLoginAttempts(db: Db, days = 30, now = new Date()): Promise<number> {
+  const rows = await db
+    .delete(loginAttempts)
+    .where(lt(loginAttempts.createdAt, new Date(now.getTime() - days * 24 * 60 * 60 * 1000)))
+    .returning({ id: loginAttempts.id });
+  return rows.length;
 }

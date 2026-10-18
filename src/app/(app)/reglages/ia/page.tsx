@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ConsentButton } from "@/components/privacy/ConsentButton";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Panel } from "@/components/ui/Panel";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -6,6 +7,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
 import { dailyBudgetUsd, providerStatuses, providerUsageToday, spentTodayUsd } from "@/modules/platform";
+import { consentedProviders, NO_CONSENT_NEEDED } from "@/modules/privacy";
 
 export const metadata: Metadata = { title: "Fournisseurs IA" };
 
@@ -19,7 +21,7 @@ function limit(n: number | null) {
 export default async function AiProvidersPage() {
   const user = await requireUser();
   const db = getDb();
-  const [usage, spent] = await Promise.all([providerUsageToday(db), spentTodayUsd(db, user.id)]);
+  const [usage, spent, consented] = await Promise.all([providerUsageToday(db), spentTodayUsd(db, user.id), consentedProviders(db, user.id)]);
   const byProvider = new Map(usage.map((u) => [u.provider, u]));
   const statuses = providerStatuses();
   const active = statuses.filter((s) => s.enabled);
@@ -76,6 +78,7 @@ export default async function AiProvidersPage() {
                     <span className="font-semibold">{s.label}</span>
                     <div className="font-mono text-xs text-muted-foreground">{s.model ?? "modèle non défini"}</div>
                     <div className="pt-1 text-xs leading-5 text-muted-foreground">{s.dataNote}</div>
+                    <div className="text-xs leading-5 text-muted-foreground">Traitement : {s.region}</div>
                   </th>
                   <td className="px-2 py-3">
                     {s.enabled ? (
@@ -88,7 +91,19 @@ export default async function AiProvidersPage() {
                     )}
                   </td>
                   <td className="px-2 py-3">
-                    {s.policy.allowsPersonalData ? <StatusBadge tone="signal">Autorisées</StatusBadge> : <StatusBadge>Refusées</StatusBadge>}
+                    {!s.policy.allowsPersonalData ? (
+                      <StatusBadge>Refusées</StatusBadge>
+                    ) : NO_CONSENT_NEEDED.has(s.id) ? (
+                      <>
+                        <StatusBadge tone="accent">Modèle local</StatusBadge>
+                        <div className="pt-1 text-xs text-muted-foreground">Aucun transfert : pas de consentement requis.</div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-start gap-1.5">
+                        {consented.has(s.id) ? <StatusBadge tone="signal">Consenties</StatusBadge> : <StatusBadge>Sans ton consentement</StatusBadge>}
+                        <ConsentButton provider={s.id} label={s.label} region={s.region} granted={consented.has(s.id)} />
+                      </div>
+                    )}
                   </td>
                   <td className="px-2 py-3 font-mono text-xs">
                     {limit(s.policy.requestsPerMinute)} / {limit(s.policy.requestsPerDay)}
@@ -114,7 +129,7 @@ export default async function AiProvidersPage() {
         </table>
       </ScrollArea>
       <p className="text-[13px] leading-5 text-muted-foreground">
-        Les limites par défaut sont indicatives (relevées le 18/10/2026 sur des sources secondaires) : vérifie-les sur la console de chaque fournisseur et ajuste <code className="font-mono">*_RPM</code> et <code className="font-mono">*_RPD</code>. Les annonces sont des données publiques ; le CV et les candidatures ne partent que vers un fournisseur dont la ligne indique « Autorisées ».
+        Les limites par défaut sont indicatives (relevées le 18/10/2026 sur des sources secondaires) : vérifie-les sur la console de chaque fournisseur et ajuste <code className="font-mono">*_RPM</code> et <code className="font-mono">*_RPD</code>. Les annonces sont des données publiques. Le CV, le profil et les candidatures, toujours masqués (identité, coordonnées, adresse, numéros, données sensibles), ne partent que vers un modèle local ou un fournisseur autorisé par la configuration et pour lequel tu as donné ton consentement, révocable à tout moment.
       </p>
     </>
   );

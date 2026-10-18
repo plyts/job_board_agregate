@@ -4,18 +4,20 @@ import { z } from "zod";
 import type { Db } from "@/db/client";
 import { analyzeOffer, findStalledOffers } from "@/modules/analysis";
 import { findStalledSuggestions, generateSuggestions } from "@/modules/cv";
+import { deleteExpiredSessions, purgeLoginAttempts } from "@/modules/identity";
 import { computeMatch, findStalledMatches } from "@/modules/matching";
 import { analysisJobOptions, extractionJobOptions, logger, matchJobOptions, SCHEDULES, suggestJobOptions } from "@/modules/platform";
-import { extractProfile, findStalledExtractions } from "@/modules/profile";
+import { extractProfile, findStalledExtractions, purgeImportedSources, sourceRetentionDays } from "@/modules/profile";
 import type { LlmRouter } from "@/modules/platform/llm/router";
 import type { LlmClient } from "@/modules/platform/llm/types";
+import type { ObjectStorage } from "@/modules/platform/storage";
 
 const AnalyzeJob = z.object({ offerId: z.uuid(), userId: z.uuid() });
 const ExtractJob = z.object({ versionId: z.uuid(), userId: z.uuid() });
 const MatchJob = z.object({ matchId: z.uuid(), userId: z.uuid() });
 const SuggestJob = z.object({ draftId: z.uuid(), userId: z.uuid() });
 
-export type WorkerDeps = { db: Db; pool: Pool; llm: LlmClient | LlmRouter | null; budgetUsd?: number };
+export type WorkerDeps = { db: Db; pool: Pool; llm: LlmClient | LlmRouter | null; budgetUsd?: number; storage?: ObjectStorage };
 
 /**
  * Cadence des files : relève toutes les 0,5 s (2 s par défaut chez pg-boss, qui limitait le débit à environ
@@ -99,6 +101,13 @@ export async function startWorker(boss: PgBoss, deps: WorkerDeps): Promise<void>
     for (const e of extractions) await boss.send("profile.extract", e, extractionJobOptions(e.versionId));
     const matches = await findStalledMatches(deps.db, olderThan);
     for (const m of matches) await boss.send("match.compute", m, matchJobOptions(m.matchId));
+    // Conservation limitée (RGPD) : sessions expirées, tentatives de connexion, CV importé après validation.
+    await deleteExpiredSessions(deps.db);
+    await purgeLoginAttempts(deps.db);
+    if (deps.storage) {
+      const purged = await purgeImportedSources({ db: deps.db, storage: deps.storage }, sourceRetentionDays());
+      if (purged) logger.info({ purged }, "CV sources effacés après la durée de conservation");
+    }
     const suggestions = await findStalledSuggestions(deps.db, olderThan);
     for (const s of suggestions) await boss.send("cv.suggest", s, suggestJobOptions(s.draftId));
     if (stalled.length || extractions.length || matches.length || suggestions.length) {

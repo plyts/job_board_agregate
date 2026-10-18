@@ -69,9 +69,16 @@ test("importer un CV sans fournisseur autorisé pour les données personnelles",
   await page.getByRole("button", { name: "Importer mon CV" }).click();
   await expect(page).toHaveURL(/\/profil\/brouillon$/);
   await expect(page.getByText("En file", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Aucun fournisseur IA n'est autorisé à recevoir ton CV/)).toBeVisible();
-  await page.getByText("Texte extrait du CV").click();
-  await expect(page.getByText(/30 pipelines Python/)).toBeVisible();
+  await expect(page.getByText(/Aucun fournisseur IA n'est autorisé et consenti pour recevoir ton CV masqué/)).toBeVisible();
+  const imported = page.getByRole("region", { name: "Import du CV" });
+  await imported.getByText("Texte extrait du CV").click();
+  await expect(imported.getByText(/30 pipelines Python/)).toBeVisible();
+  // Aperçu du texte que recevrait un modèle : identité masquée, faits conservés.
+  const privacy = page.getByRole("region", { name: "Confidentialité de l'import" });
+  await privacy.getByText("Voir le texte masqué envoyé au modèle").click();
+  await expect(privacy.getByText(/\[CANDIDAT\], Data Engineer a Lyon\./)).toBeVisible();
+  await expect(privacy).not.toContainText("Camille Martin");
+  await expect(privacy).toContainText("30 pipelines Python");
   page.once("dialog", (d) => void d.accept());
   await page.getByRole("button", { name: "Supprimer le brouillon" }).click();
   await expect(page).toHaveURL(/\/profil$/);

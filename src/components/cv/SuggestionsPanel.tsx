@@ -180,8 +180,8 @@ export function SuggestionsPanel({ offerId, cv, profile, suggestions, status, re
       </div>
       {!aiAvailable ? (
         <p className="text-[13px] leading-5 text-muted-foreground">
-          Aucun fournisseur IA n&apos;est autorisé à recevoir ton CV : les suggestions sont désactivées. Tu peux adapter le CV toi-même, ou autoriser un fournisseur (modèle local
-          recommandé) dans <Link href="/reglages/ia">les réglages IA</Link>.
+          Aucun fournisseur IA n&apos;est autorisé et consenti pour recevoir ton CV (masqué) : les suggestions sont désactivées. Tu peux adapter le CV toi-même, ou
+          configurer un modèle local (recommandé) ou donner ton consentement à un fournisseur dans <Link href="/reglages/ia">les réglages IA</Link>.
         </p>
       ) : null}
       {working ? (

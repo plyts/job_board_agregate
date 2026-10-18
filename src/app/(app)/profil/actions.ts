@@ -5,7 +5,7 @@ import { refresh } from "next/cache";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
 import { getProfileDeps } from "@/lib/profile-deps";
-import { logger } from "@/modules/platform";
+import { getStorage, logger } from "@/modules/platform";
 import { discardDraft, importCv, resolveUncertainty, saveDraft, startDraft, validateDraft } from "@/modules/profile";
 
 export type ImportCvState = { error?: string };
@@ -16,7 +16,10 @@ export async function importCvAction(_prev: ImportCvState, formData: FormData): 
   if (!(file instanceof File) || file.size === 0) return { error: "Choisis un CV au format PDF ou DOCX." };
   let result;
   try {
-    result = await importCv(getProfileDeps(), user.id, Buffer.from(await file.arrayBuffer()));
+    const declared = formData.get("declaredName");
+    result = await importCv(getProfileDeps(), user.id, Buffer.from(await file.arrayBuffer()), {
+      declaredName: typeof declared === "string" ? declared.trim().slice(0, 120) : "",
+    });
   } catch (err) {
     logger.error({ err, userId: user.id }, "import de CV en échec");
     return { error: "L'import a échoué. Réessaie dans un instant." };
@@ -50,7 +53,7 @@ export async function validateDraftAction(): Promise<ValidateState> {
 
 export async function discardDraftAction(): Promise<void> {
   const user = await requireUser();
-  await discardDraft(getDb(), user.id);
+  await discardDraft({ db: getDb(), storage: getStorage() }, user.id);
   redirect("/profil");
 }
 

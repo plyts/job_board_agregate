@@ -1,24 +1,25 @@
 import { AlignmentType, Document, Packer, Paragraph } from "docx";
 import { describe, expect, it } from "vitest";
 import { emptyProfile, evidenceElements, experienceMonths, validationProblems, type ProfileContent } from "@/modules/profile/content";
-import { readCvFile, redactContacts, toProfileContent } from "@/modules/profile/extract";
+import { readCvFile, toProfileContent } from "@/modules/profile/extract";
+import { redactPii } from "@/modules/privacy/pii";
 import { CV_EXTRACTION, CV_TEXT } from "../helpers/fixtures";
 import { minimalPdf } from "../helpers/pdf";
 
 describe("masquage des coordonnées", () => {
   it("retire e-mail et téléphone avant l'envoi au modèle et les conserve localement", () => {
-    const r = redactContacts(CV_TEXT);
-    expect(r.email).toBe("camille.martin@exemple.fr");
-    expect(r.phone).toBe("+33 6 12 34 56 78");
-    expect(r.redacted).not.toContain("camille.martin@exemple.fr");
-    expect(r.redacted).not.toContain("12 34 56 78");
-    expect(r.redacted).toContain("[e-mail]");
+    const r = redactPii(CV_TEXT, { cv: true });
+    expect(r.found.email).toBe("camille.martin@exemple.fr");
+    expect(r.found.phone).toBe("+33 6 12 34 56 78");
+    expect(r.text).not.toContain("camille.martin@exemple.fr");
+    expect(r.text).not.toContain("12 34 56 78");
+    expect(r.text).toContain("[E-MAIL]");
   });
 
   it("ne confond pas dates et années avec un numéro de téléphone", () => {
     const text = "Poste 2019 2021 2022, de 06/2021 à 08/2023, 30 pipelines, 4 To.";
-    expect(redactContacts(text).redacted).toBe(text);
-    expect(redactContacts("Tél. 06.12.34.56.78").phone).toBe("06.12.34.56.78");
+    expect(redactPii(text).text).toBe(text);
+    expect(redactPii("Tél. 06.12.34.56.78").found.phone).toBe("06.12.34.56.78");
   });
 });
 

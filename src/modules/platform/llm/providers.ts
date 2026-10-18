@@ -15,15 +15,17 @@ type Preset = {
   rpd: number | null;
   /** Usage des données sur l'offre gratuite, tel que rapporté publiquement. À vérifier avant toute donnée personnelle. */
   dataNote: string;
+  /** Lieu de traitement déclaré par le fournisseur (transferts hors UE) : à vérifier dans ses conditions. */
+  region: string;
   headers?: Record<string, string>;
 };
 
 export const PROVIDER_PRESETS: Preset[] = [
-  { id: "local", label: "Modèle local (Ollama, LM Studio)", envPrefix: "LOCAL", baseUrl: "http://localhost:11434/v1", rpm: null, rpd: null, dataNote: "Les données restent sur ta machine." },
-  { id: "groq", label: "Groq", envPrefix: "GROQ", baseUrl: "https://api.groq.com/openai/v1", rpm: 30, rpd: 1000, dataNote: "Conditions d'usage des données à vérifier." },
-  { id: "cerebras", label: "Cerebras", envPrefix: "CEREBRAS", baseUrl: "https://api.cerebras.ai/v1", rpm: 5, rpd: null, dataNote: "Offre gratuite destinée à l'expérimentation ; usage des données à vérifier." },
-  { id: "gemini", label: "Google Gemini", envPrefix: "GEMINI", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", rpm: null, rpd: null, dataNote: "Offre gratuite : contenus utilisés pour améliorer les produits Google." },
-  { id: "mistral", label: "Mistral (La Plateforme)", envPrefix: "MISTRAL", baseUrl: "https://api.mistral.ai/v1", rpm: 60, rpd: null, dataNote: "Offre Experiment : accord pour l'entraînement sur tes données requis." },
+  { id: "local", label: "Modèle local (Ollama, LM Studio)", envPrefix: "LOCAL", baseUrl: "http://localhost:11434/v1", rpm: null, rpd: null, dataNote: "Les données restent sur ta machine.", region: "Ta machine (aucun transfert)" },
+  { id: "groq", label: "Groq", envPrefix: "GROQ", baseUrl: "https://api.groq.com/openai/v1", rpm: 30, rpd: 1000, dataNote: "Conditions d'usage des données à vérifier.", region: "États-Unis" },
+  { id: "cerebras", label: "Cerebras", envPrefix: "CEREBRAS", baseUrl: "https://api.cerebras.ai/v1", rpm: 5, rpd: null, dataNote: "Offre gratuite destinée à l'expérimentation ; usage des données à vérifier.", region: "États-Unis" },
+  { id: "gemini", label: "Google Gemini", envPrefix: "GEMINI", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", rpm: null, rpd: null, dataNote: "Offre gratuite : contenus utilisés pour améliorer les produits Google.", region: "Google, infrastructure mondiale (hors UE possible)" },
+  { id: "mistral", label: "Mistral (La Plateforme)", envPrefix: "MISTRAL", baseUrl: "https://api.mistral.ai/v1", rpm: 60, rpd: null, dataNote: "Offre Experiment : accord pour l'entraînement sur tes données requis.", region: "Union européenne (France)" },
   {
     id: "openrouter",
     label: "OpenRouter",
@@ -32,9 +34,10 @@ export const PROVIDER_PRESETS: Preset[] = [
     rpm: 20,
     rpd: 50,
     dataNote: "Modèles « :free » : selon l'hébergeur, les requêtes peuvent être journalisées.",
+    region: "États-Unis, puis l'hébergeur du modèle choisi",
     headers: { "X-Title": "JobPilot" },
   },
-  { id: "anthropic", label: "Anthropic Claude (payant)", envPrefix: "ANTHROPIC", rpm: null, rpd: null, dataNote: "API payante : pas d'entraînement sur les données par défaut." },
+  { id: "anthropic", label: "Anthropic Claude (payant)", envPrefix: "ANTHROPIC", rpm: null, rpd: null, dataNote: "API payante : pas d'entraînement sur les données par défaut.", region: "États-Unis" },
 ];
 
 /** Ordre par défaut : local, puis gratuits, puis payant. */
@@ -58,6 +61,8 @@ export type ProviderStatus = {
   model: string | null;
   policy: ProviderPolicy;
   dataNote: string;
+  /** Lieu de traitement déclaré (transferts hors UE, RGPD chap. V) ; à vérifier dans les conditions du fournisseur. */
+  region: string;
 };
 
 function describe(preset: Preset, env: Env): ProviderStatus & { client: LlmClient | null } {
@@ -96,7 +101,7 @@ function describe(preset: Preset, env: Env): ProviderStatus & { client: LlmClien
                 : undefined,
           });
   }
-  return { id: preset.id, label: preset.label, enabled: client !== null, missing, model, policy, dataNote: preset.dataNote, client };
+  return { id: preset.id, label: preset.label, enabled: client !== null, missing, model, policy, dataNote: preset.dataNote, region: preset.region, client };
 }
 
 export function providerOrder(env: Env): ProviderId[] {
@@ -109,8 +114,8 @@ export function providerOrder(env: Env): ProviderId[] {
 export function providerStatuses(env: Env = process.env): ProviderStatus[] {
   const order = providerOrder(env);
   return order.map((id) => {
-    const { id: pid, label, enabled, missing, model, policy, dataNote } = describe(PROVIDER_PRESETS.find((p) => p.id === id)!, env);
-    return { id: pid, label, enabled, missing, model, policy, dataNote };
+    const { id: pid, label, enabled, missing, model, policy, dataNote, region } = describe(PROVIDER_PRESETS.find((p) => p.id === id)!, env);
+    return { id: pid, label, enabled, missing, model, policy, dataNote, region };
   });
 }
 

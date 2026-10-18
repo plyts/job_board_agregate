@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { consentedProviders, NO_CONSENT_NEEDED } from "@/modules/privacy/consent";
+import { redactPii, sanitizeOutput, totalCount, type PiiCounts } from "@/modules/privacy/pii";
 import { and, avg, count, eq, gte, ne, sql, sum } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { llmCalls } from "@/db/schema";
@@ -64,7 +66,13 @@ export function inputHash(req: StructuredRequest<unknown>): string {
   return createHash("sha256").update(req.system).update("\u0000").update(req.user).digest("hex");
 }
 
-export type JournaledResult<T> = LlmResult<T> & { costUsd: number; callId: string; provider: string };
+export type JournaledResult<T> = LlmResult<T> & {
+  costUsd: number;
+  callId: string;
+  provider: string;
+  /** Données personnelles : masquées avant l'envoi et retirées de la réponse (décomptes par catégorie). */
+  privacy: { masked: PiiCounts; inOutput: PiiCounts } | null;
+};
 
 const NO_LIMIT = { allowsPersonalData: true, requestsPerMinute: null, requestsPerDay: null };
 
@@ -83,13 +91,27 @@ export async function generateJournaled<T>(
 ): Promise<JournaledResult<T>> {
   const budget = options.budgetUsd ?? dailyBudgetUsd();
   const router = llm instanceof LlmRouter ? llm : null;
-  const candidates: RoutedProvider[] = router ? router.eligible(req.dataClass) : [{ client: llm as LlmClient, policy: NO_LIMIT }];
+  let candidates: RoutedProvider[] = router ? router.eligible(req.dataClass) : [{ client: llm as LlmClient, policy: NO_LIMIT }];
+  // Garde de confidentialité, appliquée à chaque appel portant des données personnelles, quel que soit l'appelant :
+  // avant, masquage local (identité, coordonnées, adresse, naissance, NIR, IBAN, liens, données sensibles) ;
+  // seuls les fournisseurs pour lesquels l'utilisateur a donné son consentement (ou un modèle local) sont éligibles.
+  let request = req;
+  let masked: PiiCounts = {};
+  const personal = req.dataClass === "personal";
+  if (personal) {
+    const redacted = redactPii(req.user, { names: req.privacy?.names });
+    request = { ...req, user: redacted.text };
+    masked = redacted.counts;
+    const consented = await consentedProviders(db, userId);
+    candidates = candidates.filter((c) => NO_CONSENT_NEEDED.has(c.client.provider) || consented.has(c.client.provider));
+  }
   const base = {
     userId,
     purpose: req.purpose,
     promptVersion: req.promptVersion,
     schemaVersion: req.schemaVersion,
-    inputHash: inputHash(req as StructuredRequest<unknown>),
+    inputHash: inputHash(request as StructuredRequest<unknown>),
+    piiMasked: totalCount(masked),
   };
 
   if ((await spentTodayUsd(db, userId, options.now)) >= budget) {
@@ -100,7 +122,7 @@ export async function generateJournaled<T>(
   if (candidates.length === 0) {
     throw new LlmError(
       "no_provider",
-      req.dataClass === "personal" ? "Aucun fournisseur IA n'est autorisé à recevoir des données personnelles" : "Aucun fournisseur IA configuré",
+      personal ? "Aucun fournisseur IA n'est à la fois autorisé et consenti pour recevoir tes données personnelles" : "Aucun fournisseur IA configuré",
       false,
     );
   }
@@ -120,13 +142,31 @@ export async function generateJournaled<T>(
       continue;
     }
     try {
-      const result = await client.generateStructured(req);
+      const result = await client.generateStructured(request);
+      // Après : toute donnée personnelle présente dans la réponse (reprise ou inventée) est retirée.
+      const cleaned = personal ? sanitizeOutput(result.output, { names: req.privacy?.names }) : null;
       const cost = result.reportedCostUsd ?? client.estimateCostUsd(result.model, result.usage);
       const [row] = await db
         .insert(llmCalls)
-        .values({ ...base, provider: client.provider, model: result.model, status: "ok", ...result.usage, costUsd: cost, latencyMs: result.latencyMs })
+        .values({
+          ...base,
+          provider: client.provider,
+          model: result.model,
+          status: "ok",
+          ...result.usage,
+          costUsd: cost,
+          latencyMs: result.latencyMs,
+          piiInOutput: cleaned ? totalCount(cleaned.counts) : 0,
+        })
         .returning({ id: llmCalls.id });
-      return { ...result, costUsd: cost, callId: row!.id, provider: client.provider };
+      return {
+        ...result,
+        output: cleaned ? cleaned.value : result.output,
+        costUsd: cost,
+        callId: row!.id,
+        provider: client.provider,
+        privacy: cleaned ? { masked, inOutput: cleaned.counts } : null,
+      };
     } catch (err) {
       const e = err instanceof LlmError ? err : new LlmError("api_error", err instanceof Error ? err.message : "Erreur inconnue", true);
       const usage = e.usage ?? ZERO_USAGE;

@@ -18,7 +18,7 @@ export default async function AccountPage() {
         <h2 className="text-lg font-semibold tracking-tight">Exporter mes données</h2>
         <p className="max-w-prose text-sm leading-6 text-muted-foreground">
           Archive ZIP avec toutes tes données en JSON (offres, analyses, profil maître et ses versions, CV personnalisés, matchings, candidatures, historique,
-          contacts, journal des appels IA sans contenu) et les fichiers stockés (CV importés, documents réellement envoyés). Ni mot de passe ni jeton de session.
+          contacts, journal des appels IA sans contenu, consentements IA) et les fichiers stockés (CV importés, documents réellement envoyés). Ni mot de passe ni jeton de session.
         </p>
         <a href="/api/compte/export" className="inline-flex min-h-11 items-center self-start rounded-lg bg-accent px-4 text-sm font-semibold text-on-accent no-underline">
           Télécharger l&apos;export
