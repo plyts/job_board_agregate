@@ -1,0 +1,70 @@
+# Déploiement mono-utilisateur sur une VM (docs/DEPLOIEMENT.md, ADR 0010) :
+#   docker compose up -d --build
+# Variables lues dans .env (voir .env.example) : POSTGRES_PASSWORD, BACKUP_PASSPHRASE, clés IA, etc.
+x-app: &app
+  image: jobpilot:latest
+  restart: unless-stopped
+  env_file:
+    - path: .env
+      required: false
+  environment: &app-env
+    DATABASE_URL: postgres://jobpilot:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD est requise}@db:5432/jobpilot
+    STORAGE_DIR: /data/storage
+  volumes:
+    - storage:/data/storage
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jobpilot
+      POSTGRES_DB: jobpilot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD est requise}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobpilot -d jobpilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    <<: *app
+    build: .
+    restart: "no"
+    command: ["npm", "run", "db:migrate"]
+
+  web:
+    <<: *app
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    <<: *app
+    command: ["npm", "run", "worker"]
+    environment:
+      <<: *app-env
+      BACKUP_DIR: /backups
+    volumes:
+      - storage:/data/storage
+      - backups:/backups
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
+  storage:
+  backups:

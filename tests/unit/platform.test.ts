@@ -2,6 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import { backupConfig, redactSecrets } from "@/modules/platform/backup";
 import { costUsd, hasPricing } from "@/modules/platform/llm/pricing";
 import { untrustedDocument } from "@/modules/platform/llm/untrusted";
 import { assertValidKey, LocalFsStorage } from "@/modules/platform/storage";
@@ -64,5 +65,19 @@ describe("cadence du worker", () => {
     expect(workerPace({})).toEqual({ pollingIntervalSeconds: 0.5, localConcurrency: 2 });
     expect(workerPace({ WORKER_POLL_SECONDS: "2", WORKER_CONCURRENCY: "4" })).toEqual({ pollingIntervalSeconds: 2, localConcurrency: 4 });
     expect(workerPace({ WORKER_POLL_SECONDS: "0.1", WORKER_CONCURRENCY: "99" })).toEqual({ pollingIntervalSeconds: 0.5, localConcurrency: 2 });
+  });
+});
+
+describe("configuration des sauvegardes", () => {
+  it("n'est active qu'avec la base, le dossier et la phrase de passe, sans jamais exposer cette dernière", () => {
+    expect(backupConfig({ DATABASE_URL: "postgres://x" })).toEqual({ enabled: false, missing: ["BACKUP_DIR", "BACKUP_PASSPHRASE"], cron: "15 3 * * *", timeZone: "Europe/Paris" });
+    const on = backupConfig({ DATABASE_URL: "postgres://x", BACKUP_DIR: "/sauvegardes", BACKUP_PASSPHRASE: "secret", BACKUP_RETENTION_DAYS: "14", BACKUP_CRON: "0 2 * * *", APP_TIME_ZONE: "Europe/Brussels" });
+    expect(on).toEqual({ enabled: true, dir: "/sauvegardes", retentionDays: 14, cron: "0 2 * * *", timeZone: "Europe/Brussels", offsite: false });
+    expect(JSON.stringify(on)).not.toContain("secret");
+    expect(backupConfig({ DATABASE_URL: "x", BACKUP_DIR: "d", BACKUP_PASSPHRASE: "p", BACKUP_RETENTION_DAYS: "-3", BACKUP_COPY_COMMAND: "rclone" })).toMatchObject({ retentionDays: 30, offsite: true });
+  });
+
+  it("retire identifiants d'URL et phrase de passe d'un message d'erreur", () => {
+    expect(redactSecrets("échec postgres://u:p@h/db et s3://cle:secret@bucket, phrase p4ss", { BACKUP_PASSPHRASE: "p4ss" })).toBe("échec postgres://***@h/db et s3://***@bucket, phrase ***");
   });
 });

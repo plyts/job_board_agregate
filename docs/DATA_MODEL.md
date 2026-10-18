@@ -53,6 +53,7 @@ llm_calls (journal de tous les appels IA)
 | `sync_runs` | `source_id`, `started_at`, `finished_at`, `status`, `fetched`, `new`, `duplicates`, `errors jsonb` | — |
 | `llm_calls` | `purpose`, `provider`, `model`, `prompt_version`, `schema_version`, `input_hash`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `cost_usd`, `latency_ms`, `status` (ok, refused, truncated, invalid_output, api_error, rate_limited, budget_exceeded, quota_exhausted, no_provider), `error_code`, `pii_masked`, `pii_in_output` (décomptes, jamais les valeurs) | Une ligne par tentative et par fournisseur ; aucun contenu stocké ; coûts en USD (0 pour une offre gratuite), sans conversion inventée. Base des quotas journaliers par fournisseur |
 | `ai_consents` | `provider`, `granted_at`, `revoked_at` | Preuve du consentement (RGPD art. 7) : un seul consentement actif par fournisseur (index unique partiel) ; le retrait date la ligne sans la supprimer ; condition d'envoi de données personnelles à un fournisseur externe (docs/RGPD.md) |
+| `backup_runs` | `trigger` (schedule, manual), `status` (running, ok, failed), `started_at`, `finished_at`, `file_name`, `size_bytes`, `sha256`, `error` | Table de l'instance (pas d'`user_id`) ; ni phrase de passe ni URL de base ; exclue des archives (elle décrit l'instance d'origine) |
 | `users`, `sessions`, `login_attempts` | voir ADR 0005 | `sessions.id` = SHA-256 du jeton ; sessions expirées et tentatives de plus de 30 jours purgées par le worker |
 
 ## Dédoublonnage
@@ -64,7 +65,7 @@ llm_calls (journal de tous les appels IA)
 
 ## État réel des tables
 
-Créées à ce jour (migrations `drizzle/0000` à `0020`) : `users`, `sessions`, `login_attempts`, `llm_calls`, `companies`, `job_offers`, `offer_imports`, `offer_analyses`, `job_requirements`, `requirement_corrections`, `profile_versions`, `match_analyses` (avec `cv_version_id` pour les recontrôles), `match_items`, `cv_versions`, `cv_suggestions`, `applications`, `application_documents`, `application_events`, `application_contacts`, `offer_events`, `ai_consents`, `board_columns`. Pas de table `reminders` : la relance est la prochaine action datée de la candidature (proposée à l'envoi selon `follow_up_days`). Les autres tables de ce document restent à créer avec leur module.
+Créées à ce jour (migrations `drizzle/0000` à `0021`) : `users`, `sessions`, `login_attempts`, `llm_calls`, `companies`, `job_offers`, `offer_imports`, `offer_analyses`, `job_requirements`, `requirement_corrections`, `profile_versions`, `match_analyses` (avec `cv_version_id` pour les recontrôles), `match_items`, `cv_versions`, `cv_suggestions`, `applications`, `application_documents`, `application_events`, `application_contacts`, `offer_events`, `ai_consents`, `board_columns`, `backup_runs`. Pas de table `reminders` : la relance est la prochaine action datée de la candidature (proposée à l'envoi selon `follow_up_days`). Les autres tables de ce document restent à créer avec leur module.
 
 ## Métriques (tableau de bord)
 

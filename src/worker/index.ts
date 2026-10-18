@@ -7,7 +7,21 @@ import { draftLetter, findStalledLetters } from "@/modules/applications";
 import { findStalledSuggestions, generateSuggestions } from "@/modules/cv";
 import { deleteExpiredSessions, purgeLoginAttempts } from "@/modules/identity";
 import { computeMatch, findStalledMatches } from "@/modules/matching";
-import { analysisJobOptions, extractionJobOptions, letterJobOptions, logger, matchJobOptions, SCHEDULES, suggestJobOptions } from "@/modules/platform";
+import {
+  analysisJobOptions,
+  BACKUP_JOB_OPTIONS,
+  backupConfig,
+  closeInterruptedBackups,
+  extractionJobOptions,
+  letterJobOptions,
+  logger,
+  matchJobOptions,
+  runBackup,
+  SCHEDULES,
+  suggestJobOptions,
+  type BackupExec,
+} from "@/modules/platform";
+import { backupRuns } from "@/db/schema";
 import { extractProfile, findStalledExtractions, purgeImportedSources, sourceRetentionDays } from "@/modules/profile";
 import type { LlmRouter } from "@/modules/platform/llm/router";
 import type { LlmClient } from "@/modules/platform/llm/types";
@@ -18,8 +32,17 @@ const ExtractJob = z.object({ versionId: z.uuid(), userId: z.uuid() });
 const MatchJob = z.object({ matchId: z.uuid(), userId: z.uuid() });
 const SuggestJob = z.object({ draftId: z.uuid(), userId: z.uuid() });
 const LetterJob = z.object({ applicationId: z.uuid(), userId: z.uuid() });
+const BackupJob = z.object({ trigger: z.enum(["schedule", "manual"]) });
 
-export type WorkerDeps = { db: Db; pool: Pool; llm: LlmClient | LlmRouter | null; budgetUsd?: number; storage?: ObjectStorage };
+export type WorkerDeps = {
+  db: Db;
+  pool: Pool;
+  llm: LlmClient | LlmRouter | null;
+  budgetUsd?: number;
+  storage?: ObjectStorage;
+  /** Exécution de la sauvegarde ; absente si BACKUP_DIR ou BACKUP_PASSPHRASE manque. */
+  backup?: BackupExec;
+};
 
 /**
  * Cadence des files : relève toutes les 0,5 s (2 s par défaut chez pg-boss, qui limitait le débit à environ
@@ -109,6 +132,21 @@ export async function startWorker(boss: PgBoss, deps: WorkerDeps): Promise<void>
     logger.info({ jobId: job.id, outcome: outcome.kind }, "proposition de lettre");
   });
 
+  // Sauvegarde chiffrée : chaque exécution est journalisée (backup_runs), sans secret.
+  await boss.work("backup.run", { batchSize: 1, includeMetadata: true, ...pace }, async ([job]) => {
+    if (!job) return;
+    const trigger = BackupJob.safeParse(job.data).data?.trigger ?? "manual";
+    if (!deps.backup) {
+      const config = backupConfig();
+      const error = config.enabled ? "Sauvegardes non activées dans ce worker." : `Sauvegardes non configurées : manque ${config.missing.join(", ")}.`;
+      await deps.db.insert(backupRuns).values({ trigger, status: "failed", finishedAt: new Date(), error });
+      return;
+    }
+    const run = await runBackup(deps.db, deps.backup, trigger);
+    if (run.status === "ok") logger.info({ file: run.fileName, bytes: run.sizeBytes }, "sauvegarde terminée");
+    else logger.error({ error: run.error }, "sauvegarde en échec");
+  });
+
   await boss.work("offer.resume", async () => {
     const olderThan = new Date(Date.now() - 15 * 60 * 1000);
     const stalled = await findStalledOffers(deps.db, olderThan);
@@ -119,6 +157,7 @@ export async function startWorker(boss: PgBoss, deps: WorkerDeps): Promise<void>
     for (const m of matches) await boss.send("match.compute", m, matchJobOptions(m.matchId));
     // Conservation limitée (RGPD) : sessions expirées, tentatives de connexion, CV importé après validation.
     await deleteExpiredSessions(deps.db);
+    await closeInterruptedBackups(deps.db);
     await purgeLoginAttempts(deps.db);
     if (deps.storage) {
       const purged = await purgeImportedSources({ db: deps.db, storage: deps.storage }, sourceRetentionDays());
@@ -136,4 +175,15 @@ export async function startWorker(boss: PgBoss, deps: WorkerDeps): Promise<void>
     }
   });
   for (const { queue, cron } of SCHEDULES) await boss.schedule(queue, cron);
+  // Sauvegarde quotidienne (fuseau de l'application) ; une échéance manquée pendant un arrêt est rattrapée une fois.
+  const backup = backupConfig();
+  if (deps.backup && backup.enabled) {
+    // La configuration voyage avec la planification : le serveur web l'affiche sans avoir accès aux variables du worker.
+    const data = { trigger: "schedule", offsite: backup.offsite, retentionDays: backup.retentionDays };
+    await boss.schedule("backup.run", backup.cron, data, { ...BACKUP_JOB_OPTIONS, tz: backup.timeZone, missed: "once" });
+    logger.info({ cron: backup.cron, tz: backup.timeZone, offsite: backup.offsite }, "sauvegardes planifiées");
+  } else {
+    await boss.unschedule("backup.run");
+    logger.warn("Sauvegardes non planifiées : renseigne BACKUP_DIR et BACKUP_PASSPHRASE.");
+  }
 }

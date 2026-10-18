@@ -23,7 +23,7 @@
 | Contacts de recruteurs | nom, rôle, e-mail, téléphone, lien | suivi des échanges | intérêt légitime (art. 6.1.f) ; données de tiers, minimales | aucun, jamais envoyés à un modèle |
 | Journal des appels IA | fournisseur, modèle, finalité, jetons, coût, décomptes de masquage, empreinte de l'entrée | budget, quotas, preuve de minimisation | intérêt légitime | aucun ; **aucun contenu stocké** |
 | Consentements IA | fournisseur, date de consentement et de retrait | preuve du consentement (art. 7.1) | obligation légale de preuve | aucun |
-| Sauvegardes | base et fichiers, chiffrés AES-256 | continuité | intérêt légitime | hébergeur des sauvegardes |
+| Sauvegardes | base et fichiers, chiffrés AES-256 | continuité | intérêt légitime | hébergeur de la VM ; stockage objet de la copie hors site (UE, autre région) ; jamais en clair |
 
 ## Envois aux modèles d'IA
 
@@ -67,7 +67,7 @@ Ces informations sont celles publiées par les fournisseurs et doivent être rev
 | Tentatives de connexion | 30 jours | `purgeLoginAttempts` (worker) |
 | Profil, CV, candidatures, contacts, journal IA, consentements | jusqu'à suppression par l'utilisateur ou du compte | suppression en cascade |
 | Documents réellement envoyés | jusqu'à suppression du compte | protégés contre toute autre suppression (preuve) |
-| Sauvegardes chiffrées | 30 jours (`BACKUP_RETENTION_DAYS`) | rotation par `scripts/backup.sh` |
+| Sauvegardes chiffrées | 30 jours (`BACKUP_RETENTION_DAYS`) ; copie hors site selon la règle de cycle de vie du bucket | rotation par `scripts/backup.sh`, planifiée chaque jour par le worker |
 
 Après une suppression de compte, les données restent dans les sauvegardes jusqu'à leur rotation. C'est indiqué à l'utilisateur.
 

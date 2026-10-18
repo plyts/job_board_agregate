@@ -49,6 +49,8 @@ export const QUEUES = {
     retryDelayMax: 600,
     expireInSeconds: 300,
   },
+  /** Sauvegarde chiffrée de l'instance : planifiée chaque jour par le worker, ou demandée depuis les réglages. */
+  "backup.run": { policy: "exclusive", retryLimit: 1, retryDelay: 600, expireInSeconds: 3600 },
   /** Balayage planifié : remet en file les analyses en attente (budget atteint, worker arrêté). */
   "offer.resume": { policy: "exclusive", retryLimit: 0, expireInSeconds: 120 },
 } satisfies Record<string, Omit<Queue, "name">>;
@@ -88,6 +90,9 @@ export function matchJobOptions(matchId: string) {
 export function suggestJobOptions(draftId: string) {
   return { singletonKey: `cv:${draftId}` };
 }
+
+/** Une seule sauvegarde en attente ou en cours à la fois. */
+export const BACKUP_JOB_OPTIONS = { singletonKey: "backup" };
 
 export function letterJobOptions(applicationId: string) {
   return { singletonKey: `letter:${applicationId}` };

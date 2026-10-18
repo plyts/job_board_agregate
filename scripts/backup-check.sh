@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Vérification de bout en bout : sauvegarde de SOURCE_URL, restauration dans une base neuve, puis comparaison
-# du nombre de lignes de chaque table et des empreintes des fichiers.
+# du nombre de lignes de chaque table (hors historique des sauvegardes, non copié) et des empreintes des fichiers.
 #
 # Usage : SOURCE_URL=… ADMIN_URL=… (connexion pour créer la base de contrôle) [STORAGE_DIR=…] scripts/backup-check.sh
 set -euo pipefail
@@ -20,7 +20,7 @@ DATABASE_URL="$target_url" STORAGE_DIR="$tmp/restored-storage" "$here/restore.sh
 counts() {
   psql "$1" -At <<'SQL'
 select string_agg(format('%s=%s', table_name, (xpath('/row/n/text()', query_to_xml(format('select count(*) as n from public.%I', table_name), false, true, '')))[1]::text), ' ' order by table_name)
-from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE';
+from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE' and table_name <> 'backup_runs';
 SQL
 }
 before=$(counts "$SOURCE_URL")

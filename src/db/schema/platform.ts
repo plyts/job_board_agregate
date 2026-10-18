@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, numeric, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { bigint, index, integer, numeric, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { users } from "./identity";
 
 /** Journal de chaque appel au modèle : coûts, latence et erreurs, jamais le contenu. */
@@ -52,4 +52,26 @@ export const aiConsents = pgTable(
   },
   // Un seul consentement actif par fournisseur ; les consentements retirés restent comme historique daté.
   (t) => [uniqueIndex("ai_consents_one_active").on(t.userId, t.provider).where(sql`${t.revokedAt} is null`)],
+);
+
+export const backupRunStatus = pgEnum("backup_run_status", ["running", "ok", "failed"]);
+
+/**
+ * Sauvegardes de l'instance (base et fichiers, archive chiffrée) lancées par le worker : planifiées ou à la demande.
+ * Ni la phrase de passe ni l'URL de la base n'y figurent.
+ */
+export const backupRuns = pgTable(
+  "backup_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    trigger: text("trigger", { enum: ["schedule", "manual"] }).notNull(),
+    status: backupRunStatus("status").notNull().default("running"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    fileName: text("file_name"),
+    sizeBytes: bigint("size_bytes", { mode: "number" }),
+    sha256: text("sha256"),
+    error: text("error"),
+  },
+  (t) => [index("backup_runs_started_idx").on(t.startedAt)],
 );

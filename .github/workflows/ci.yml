@@ -59,3 +59,12 @@ jobs:
           name: playwright-report
           path: test-results/
           retention-days: 7
+
+  image:
+    # L'image de déploiement (ADR 0010) se construit et contient les outils des sauvegardes.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t jobpilot:ci .
+      - run: docker run --rm jobpilot:ci sh -c 'node --version && pg_dump --version && rclone version | head -1 && test -f web/server.js && bash -n scripts/backup.sh'
