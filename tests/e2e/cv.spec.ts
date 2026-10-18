@@ -2,6 +2,9 @@ import { expect, test } from "@playwright/test";
 import { analyzedOfferTitle, signIn } from "./fixtures";
 import { drainPendingMatches } from "./worker";
 
+// Parcours qui modifie des données persistantes : une seconde tentative partirait d'un autre état.
+test.describe.configure({ retries: 0 });
+
 const MISSION = "Développement et maintenance de 30 pipelines Python/SQL orchestrés par Airflow.";
 const SUGGESTED = "Conception et maintenance de 30 pipelines Python et SQL orchestrés par Airflow.";
 

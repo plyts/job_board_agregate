@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { applicationOfferTitle, signIn } from "./fixtures";
 
+// Parcours qui modifie des données persistantes : une seconde tentative partirait d'un autre état.
+test.describe.configure({ retries: 0 });
+
 test("suivre une candidature : Kanban au clavier, envoi confirmé avec fichier figé, historique", async ({ page }, testInfo) => {
   const title = applicationOfferTitle(testInfo.project.name);
   await signIn(page);
@@ -63,6 +66,8 @@ test("suivre une candidature : Kanban au clavier, envoi confirmé avec fichier f
     const sent = page.getByRole("region", { name: "Envoyée" }).getByRole("listitem", { name: pattern });
     await sent.dragTo(page.getByRole("region", { name: "Relance" }));
     await expect(page.getByRole("region", { name: "Relance" }).getByRole("listitem", { name: pattern })).toBeVisible();
+    // Affichage optimiste immédiat ; on attend l'enregistrement avant de recharger.
+    await expect(page.getByText(/déplacée vers Relance\./)).toBeAttached();
     await page.reload();
     await expect(page.getByRole("region", { name: "Relance" })).toContainText(title);
   } else {
