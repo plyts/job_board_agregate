@@ -2,7 +2,8 @@ import { sql } from "drizzle-orm";
 import { createDb, createPool, type Db } from "@/db/client";
 import { runMigrations } from "@/db/migrate";
 
-const url = process.env.DATABASE_URL_TEST ?? "postgres://postgres@localhost:5432/jobpilot_test";
+export const TEST_DATABASE_URL = process.env.DATABASE_URL_TEST ?? "postgres://postgres@localhost:5432/jobpilot_test";
+const url = TEST_DATABASE_URL;
 
 let state: { db: Db; close: () => Promise<void> } | undefined;
 
