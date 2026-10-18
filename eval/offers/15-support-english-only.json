@@ -1,0 +1,56 @@
+{
+  "id": "15-support-english-only",
+  "text": "Technical Support Engineer — CloudNest — Dublin\nHelp enterprise customers troubleshoot our SaaS platform via tickets and calls.\nRequirements: 2 years in technical support, good knowledge of SQL and REST APIs, fluent English and French.\nShift work including some weekends. Permanent contract, relocation package available.",
+  "expected": [
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "2"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "sql"
+      ]
+    },
+    {
+      "kinds": [
+        "language"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "english"
+      ]
+    },
+    {
+      "kinds": [
+        "language"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "french"
+      ]
+    },
+    {
+      "kinds": [
+        "location"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "dublin"
+      ]
+    }
+  ],
+  "notMentioned": [
+    "salary"
+  ],
+  "forbidden": []
+}

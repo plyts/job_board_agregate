@@ -1,0 +1,65 @@
+{
+  "id": "24-availability",
+  "text": "Ingénieur QA automatisation — Testora — Lille\nPrise de poste : janvier 2027.\nAutomatisation des tests avec Cypress et Playwright, intégration dans GitHub Actions.\nProfil : 3 ans d'expérience en tests automatisés, connaissance de JavaScript.\nISTQB Foundation souhaitée. CDI, 2 jours de télétravail.",
+  "expected": [
+    {
+      "kinds": [
+        "availability"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "janvier"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "cypress"
+      ]
+    },
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "3"
+      ]
+    },
+    {
+      "kinds": [
+        "certification"
+      ],
+      "importance": "preferred",
+      "keywords": [
+        "istqb"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "cdi"
+      ]
+    },
+    {
+      "kinds": [
+        "remote"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "2"
+      ]
+    }
+  ],
+  "notMentioned": [
+    "salary"
+  ],
+  "forbidden": []
+}

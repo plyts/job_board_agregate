@@ -1,0 +1,38 @@
+{
+  "id": "29-salary-hidden",
+  "text": "Développeur mobile Flutter — Pixa — Paris\nVous développerez notre application iOS et Android en Flutter.\n2 ans d'expérience sur Flutter et Dart. Publication sur les stores appréciée.\nPackage attractif selon profil. CDI.",
+  "expected": [
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "flutter"
+      ]
+    },
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "2"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "cdi"
+      ]
+    }
+  ],
+  "notMentioned": [
+    "salary"
+  ],
+  "forbidden": []
+}

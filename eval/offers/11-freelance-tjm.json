@@ -1,0 +1,73 @@
+{
+  "id": "11-freelance-tjm",
+  "text": "Mission freelance — Data Engineer Snowflake — 6 mois renouvelable\nClient grand compte du secteur retail, Lille, 2 jours de présence par semaine.\nDémarrage : ASAP. TJM : 550 à 650 €.\nCompétences attendues : Snowflake, dbt, Airflow, 5 ans d'expérience minimum. Anglais lu et écrit.",
+  "expected": [
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "freelance"
+      ]
+    },
+    {
+      "kinds": [
+        "salary"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "550"
+      ]
+    },
+    {
+      "kinds": [
+        "availability"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "asap"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "snowflake"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "dbt"
+      ]
+    },
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "5"
+      ]
+    },
+    {
+      "kinds": [
+        "language"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "anglais"
+      ]
+    }
+  ],
+  "notMentioned": [],
+  "forbidden": []
+}

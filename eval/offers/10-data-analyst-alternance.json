@@ -1,0 +1,58 @@
+{
+  "id": "10-data-analyst-alternance",
+  "text": "Alternance — Data Analyst — Banque Atlas — Paris\nRythme : 3 jours en entreprise, 2 jours en école. Durée : 24 mois, à partir de septembre.\nVous construirez des tableaux de bord sous Power BI et automatiserez des extractions SQL.\nProfil : étudiant(e) en Master data ou école d'ingénieur, bases en SQL et Python, rigueur.",
+  "expected": [
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "alternance"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "sql"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "python"
+      ]
+    },
+    {
+      "kinds": [
+        "degree"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "master"
+      ]
+    },
+    {
+      "kinds": [
+        "availability",
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "septembre"
+      ]
+    }
+  ],
+  "notMentioned": [
+    "salary"
+  ],
+  "forbidden": []
+}

@@ -11,7 +11,10 @@ describe("jeu d'évaluation des offres", async () => {
   );
 
   it("chaque cas est bien formé", () => {
-    expect(cases.length).toBeGreaterThanOrEqual(6);
+    expect(cases.length).toBeGreaterThanOrEqual(30);
+    expect(new Set(cases.map((c) => c.id)).size).toBe(cases.length);
+    // Pièges d'injection de consignes : au moins trois cas avec des contenus interdits.
+    expect(cases.filter((c) => c.forbidden.length > 0).length).toBeGreaterThanOrEqual(3);
     for (const c of cases) {
       expect(c.text.length).toBeGreaterThan(50);
       expect(c.expected.length).toBeGreaterThan(0);

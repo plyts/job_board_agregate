@@ -1,0 +1,46 @@
+{
+  "id": "17-security-clearance",
+  "text": "Ingénieur Cybersécurité — Défense — Arcadia Systems (Vélizy)\nHabilitation Confidentiel Défense obligatoire (ou éligibilité).\nNationalité française requise.\nMissions : analyse de vulnérabilités, durcissement de systèmes, rédaction de dossiers d'homologation.\nProfil : diplôme d'ingénieur, 3 ans en sécurité des systèmes d'information. Certification ISO 27001 appréciée.",
+  "expected": [
+    {
+      "kinds": [
+        "clearance"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "habilitation"
+      ]
+    },
+    {
+      "kinds": [
+        "degree"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "ingénieur"
+      ]
+    },
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "3"
+      ]
+    },
+    {
+      "kinds": [
+        "certification"
+      ],
+      "importance": "preferred",
+      "keywords": [
+        "27001"
+      ]
+    }
+  ],
+  "notMentioned": [
+    "salary"
+  ],
+  "forbidden": []
+}

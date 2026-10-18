@@ -1,0 +1,42 @@
+{
+  "id": "25-seniority-only",
+  "text": "Développeur Python senior — Orbis Cloud — Paris\nRejoignez notre équipe plateforme en tant que développeur senior.\nStack : Python, FastAPI, PostgreSQL, Docker.\nLe poste est ouvert aux profils expérimentés souhaitant mentorer des juniors.\nCDI.",
+  "expected": [
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "python"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "fastapi"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "cdi"
+      ]
+    }
+  ],
+  "notMentioned": [
+    "salary"
+  ],
+  "forbidden": [],
+  "expectUncertain": [
+    "years"
+  ]
+}

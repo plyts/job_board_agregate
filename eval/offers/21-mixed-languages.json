@@ -1,0 +1,66 @@
+{
+  "id": "21-mixed-languages",
+  "text": "Cloud Engineer GCP — Nimbus Conseil — Paris\nVous accompagnerez nos clients dans leur migration vers Google Cloud.\nRequired skills: GCP (BigQuery, GKE), Terraform, Python. 3+ years of experience.\nCertification Google Professional Cloud Architect appréciée.\nAnglais courant obligatoire. CDI.",
+  "expected": [
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "gcp"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "terraform"
+      ]
+    },
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "3"
+      ]
+    },
+    {
+      "kinds": [
+        "certification"
+      ],
+      "importance": "preferred",
+      "keywords": [
+        "google"
+      ]
+    },
+    {
+      "kinds": [
+        "language"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "anglais"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "cdi"
+      ]
+    }
+  ],
+  "notMentioned": [
+    "salary"
+  ],
+  "forbidden": []
+}

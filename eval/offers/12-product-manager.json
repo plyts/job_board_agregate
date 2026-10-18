@@ -1,0 +1,46 @@
+{
+  "id": "12-product-manager",
+  "text": "Product Manager — Mobilité urbaine — Kinetix (Nantes)\nVous définirez la feuille de route du produit, prioriserez le backlog et animerez les rituels avec les équipes de développement.\nNous recherchons : 5 ans d'expérience en gestion de produit numérique, capacité à arbitrer, excellent relationnel.\nUn passage par une startup est apprécié. Anglais professionnel requis.\nCDI, hybride (3 jours de télétravail).",
+  "expected": [
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "5"
+      ]
+    },
+    {
+      "kinds": [
+        "language"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "anglais"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "cdi"
+      ]
+    },
+    {
+      "kinds": [
+        "remote"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "3"
+      ]
+    }
+  ],
+  "notMentioned": [
+    "salary"
+  ],
+  "forbidden": []
+}

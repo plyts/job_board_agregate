@@ -1,0 +1,67 @@
+{
+  "id": "08-frontend-react",
+  "text": "Développeur Front-end React confirmé — Lumea Studio (Bordeaux)\nMissions : développer des interfaces accessibles en React et TypeScript, écrire des tests avec Playwright.\nExigences : 3 ans d'expérience en React, maîtrise de TypeScript, sensibilité à l'accessibilité (RGAA).\nBonus : Next.js, expérience en agence.\nContrat : CDI. Poste sur site à Bordeaux.",
+  "expected": [
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "3"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "react"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "typescript"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "preferred",
+      "keywords": [
+        "next"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "cdi"
+      ]
+    },
+    {
+      "kinds": [
+        "location"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "bordeaux"
+      ]
+    }
+  ],
+  "notMentioned": [
+    "salary"
+  ],
+  "forbidden": []
+}

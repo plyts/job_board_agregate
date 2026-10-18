@@ -1,0 +1,74 @@
+{
+  "id": "20-long-detailed",
+  "text": "Lead Developer Java — Assurance — Groupe Mutualis — Niort\nLe Groupe Mutualis modernise son système d'information de gestion des contrats.\nAu sein d'une équipe de 8 développeurs, vous serez le référent technique et animerez les revues de code.\nVos responsabilités :\n- concevoir et faire évoluer des microservices Java 21 / Spring Boot ;\n- garantir la qualité (tests, revues, intégration continue sous Jenkins) ;\n- encadrer et faire monter en compétence les développeurs juniors ;\n- participer aux choix d'architecture avec les architectes du groupe.\nProfil :\n- 7 ans d'expérience en développement Java, dont 2 en tant que lead ;\n- maîtrise de Spring Boot et des bases Oracle ;\n- une expérience du secteur de l'assurance est un atout ;\n- qualités de pédagogie et de leadership.\nConditions : CDI, 55 à 65 k€, 2 jours de télétravail, prime de participation.",
+  "expected": [
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "7"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "java"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "spring"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "oracle"
+      ]
+    },
+    {
+      "kinds": [
+        "salary"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "55"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "cdi"
+      ]
+    },
+    {
+      "kinds": [
+        "remote"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "2"
+      ]
+    }
+  ],
+  "notMentioned": [],
+  "forbidden": []
+}

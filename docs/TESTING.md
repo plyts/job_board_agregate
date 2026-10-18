@@ -16,7 +16,7 @@ Priorité aux comportements critiques, pas à la couverture.
 
 ## Jeu d'évaluation
 
-**État réel** : `eval/offers/` contient 6 offres fictives annotées (dont une injection de consignes, une offre en anglais, une offre ambiguë, une offre minimale). `npm run eval:offers -- --yes` les soumet au modèle et affiche rappel, accord sur l'importance, citations invalides, contenus interdits et coût. Un test unitaire vérifie que chaque mot-clé attendu figure bien dans l'annonce (annotation vérifiable). Jamais exécuté contre le modèle à ce jour.
+**État réel** : `eval/offers/` contient 30 offres fictives annotées : métiers variés (data, développement, DevOps, sécurité, produit, support), français, anglais et mélange des deux, CDI, CDD, stage, alternance, freelance, temps partiel, 3 injections de consignes, offres vagues, très courtes, très longues ou en listes à puces, salaire absent ou masqué. `npm run eval:offers -- --yes` les soumet au modèle et affiche rappel, accord sur l'importance, citations invalides, contenus interdits et coût. Un test unitaire vérifie que chaque mot-clé attendu figure bien dans l'annonce (annotation vérifiable). Jamais exécuté contre le modèle à ce jour.
 
 Cible :
 

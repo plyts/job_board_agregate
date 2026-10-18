@@ -1,0 +1,55 @@
+{
+  "id": "26-international",
+  "text": "Data Engineer — Nordic Energy — Oslo (relocation supported)\nWe are looking for a Data Engineer to build streaming pipelines for our energy trading platform.\nRequirements: 3 years with Python and Spark, experience with Kafka streaming. Norwegian is not required; English is mandatory.\nSalary: NOK 750,000–850,000. Permanent position.",
+  "expected": [
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "3"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "spark"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "kafka"
+      ]
+    },
+    {
+      "kinds": [
+        "language"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "english"
+      ]
+    },
+    {
+      "kinds": [
+        "salary"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "750"
+      ]
+    }
+  ],
+  "notMentioned": [],
+  "forbidden": []
+}

@@ -1,0 +1,54 @@
+{
+  "id": "16-bullets",
+  "text": "DATA ARCHITECT — GROUPE VÉLOCE — LYON\n• Concevoir l'architecture de la plateforme data (lakehouse)\n• Définir les standards de modélisation et de gouvernance\n• Accompagner 3 équipes de Data Engineers\nPROFIL\n• 8 ans d'expérience dont 3 en architecture\n• Databricks, Delta Lake, Unity Catalog\n• Connaissance du RGPD\nCONDITIONS\n• CDI cadre — 75 000 € à 90 000 € — 2 jours de télétravail",
+  "expected": [
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "8"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "databricks"
+      ]
+    },
+    {
+      "kinds": [
+        "salary"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "75"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "cdi"
+      ]
+    },
+    {
+      "kinds": [
+        "remote"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "2"
+      ]
+    }
+  ],
+  "notMentioned": [],
+  "forbidden": []
+}

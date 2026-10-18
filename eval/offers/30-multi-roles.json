@@ -1,0 +1,48 @@
+{
+  "id": "30-multi-roles",
+  "text": "Nous recrutons deux profils pour notre équipe data — Quantix — Paris\n1) Data Engineer : 3 ans d'expérience, Python, Airflow.\n2) Data Analyst : 2 ans d'expérience, SQL, Looker.\nLes deux postes sont en CDI, hybride 2 jours.",
+  "expected": [
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "airflow"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "looker"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "cdi"
+      ]
+    },
+    {
+      "kinds": [
+        "remote"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "2"
+      ]
+    }
+  ],
+  "notMentioned": [
+    "salary"
+  ],
+  "forbidden": []
+}

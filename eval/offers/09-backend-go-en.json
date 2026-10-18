@@ -1,0 +1,56 @@
+{
+  "id": "09-backend-go-en",
+  "text": "Senior Backend Engineer (Go) — Fintrail — Berlin or remote (EU)\nYou will design payment APIs in Go and PostgreSQL and own their reliability in production.\nMust have: 6+ years of backend development, strong Go, experience with distributed systems.\nNice to have: Kafka, PCI-DSS exposure.\nFull-time permanent contract. Salary band: 85,000–100,000 EUR.",
+  "expected": [
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "6"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "go"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "preferred",
+      "keywords": [
+        "kafka"
+      ]
+    },
+    {
+      "kinds": [
+        "salary"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "85"
+      ]
+    },
+    {
+      "kinds": [
+        "remote",
+        "location"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "remote"
+      ]
+    }
+  ],
+  "notMentioned": [],
+  "forbidden": []
+}

@@ -1,0 +1,54 @@
+{
+  "id": "18-part-time",
+  "text": "Développeur PHP Symfony à temps partiel (80 %) — Association Solid'Air — Montpellier\nCDI à 4 jours par semaine. Télétravail total possible.\nVous maintiendrez notre application de gestion des bénévoles (Symfony, MySQL).\n2 ans d'expérience sur Symfony. Intérêt pour l'économie sociale et solidaire.\nSalaire : 32 000 € brut annuel (base temps plein).",
+  "expected": [
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "symfony"
+      ]
+    },
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "2"
+      ]
+    },
+    {
+      "kinds": [
+        "salary"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "32"
+      ]
+    },
+    {
+      "kinds": [
+        "remote"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "télétravail"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "cdi"
+      ]
+    }
+  ],
+  "notMentioned": [],
+  "forbidden": []
+}

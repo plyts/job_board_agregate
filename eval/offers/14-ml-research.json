@@ -1,0 +1,36 @@
+{
+  "id": "14-ml-research",
+  "text": "Research Engineer — Vision par ordinateur — Optima Labs (Grenoble)\nDoctorat en vision par ordinateur ou apprentissage automatique exigé.\nExpérience avec PyTorch et la publication scientifique (CVPR, ICCV) appréciée.\nContrat CDD de 18 mois. Rémunération selon grille.",
+  "expected": [
+    {
+      "kinds": [
+        "degree"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "doctorat"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "preferred",
+      "keywords": [
+        "pytorch"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "cdd"
+      ]
+    }
+  ],
+  "notMentioned": [],
+  "forbidden": []
+}

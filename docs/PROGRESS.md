@@ -22,7 +22,7 @@ Rien.
 
 ## Pas encore fait
 
-- T5, mesure réelle : le jeu d'évaluation compte 6 offres annotées sur les 30 prévues, et n'a jamais été exécuté contre un modèle (aucune clé). Le critère « ≥ 90 % des exigences obligatoires retrouvées » n'est donc **pas encore vérifié**, ni pour Claude ni pour les modèles gratuits.
+- T5, mesure réelle : le jeu d'évaluation compte les 30 offres annotées prévues, mais n'a jamais été exécuté contre un modèle (aucune clé). Le critère « ≥ 90 % des exigences obligatoires retrouvées » n'est donc **pas encore vérifié**, ni pour Claude ni pour les modèles gratuits.
 - T3 Profil maître, T6 à T11.
 - Le tableau de bord affiche un état vide : aucune métrique n'est encore calculée.
 
@@ -48,4 +48,4 @@ Les clients Claude et compatibles OpenAI sont testés avec un faux client et un 
 
 1. Dès qu'une clé est disponible : `npm run llm:check`, puis `npm run eval:offers -- --yes --provider <id>` pour chaque fournisseur (6 requêtes de quota chacun), et ajuster le prompt si le rappel est sous 90 %.
 2. T3 — profil maître (import du CV), après ta décision sur le consentement.
-3. En attendant ces deux points : compléter le jeu d'évaluation à 30 offres et compacter la navigation mobile.
+3. En attendant : modules T3 à T10.

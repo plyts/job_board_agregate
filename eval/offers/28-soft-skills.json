@@ -1,0 +1,46 @@
+{
+  "id": "28-soft-skills",
+  "text": "Scrum Master — Ventis — Marseille\nVous accompagnerez deux équipes agiles dans l'amélioration continue de leurs pratiques.\nNous attendons : certification PSM I ou équivalente, 3 ans comme Scrum Master, excellentes capacités de facilitation et d'écoute.\nCDI, télétravail partiel.",
+  "expected": [
+    {
+      "kinds": [
+        "certification"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "psm"
+      ]
+    },
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "3"
+      ]
+    },
+    {
+      "kinds": [
+        "soft_skill"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "facilitation"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "cdi"
+      ]
+    }
+  ],
+  "notMentioned": [
+    "salary"
+  ],
+  "forbidden": []
+}

@@ -1,0 +1,83 @@
+{
+  "id": "07-devops-aws",
+  "text": "Ingénieur DevOps (H/F) — Altira Cloud — Toulouse\nCDI, télétravail 2 jours par semaine.\nVous automatiserez nos déploiements avec Terraform et GitLab CI, et administrerez nos clusters Kubernetes sur AWS.\nProfil recherché : 4 ans d'expérience minimum en DevOps, maîtrise de Linux et de Terraform.\nLa certification AWS Solutions Architect est un plus.\nSalaire : 50 à 60 k€ selon expérience.",
+  "expected": [
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "4"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "terraform"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "linux"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "kubernetes"
+      ]
+    },
+    {
+      "kinds": [
+        "certification"
+      ],
+      "importance": "preferred",
+      "keywords": [
+        "aws"
+      ]
+    },
+    {
+      "kinds": [
+        "salary"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "50"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "cdi"
+      ]
+    },
+    {
+      "kinds": [
+        "remote"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "2"
+      ]
+    }
+  ],
+  "notMentioned": [],
+  "forbidden": []
+}

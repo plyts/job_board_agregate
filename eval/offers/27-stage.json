@@ -1,0 +1,46 @@
+{
+  "id": "27-stage",
+  "text": "Stage — Assistant(e) Data Engineer — 6 mois — Ondine Data — Lyon\nDébut : février ou mars 2027. Gratification légale.\nVous participerez à la construction de pipelines d'ingestion sous Airflow.\nProfil : étudiant(e) en dernière année d'école d'ingénieur ou de Master, à l'aise avec Python et SQL.",
+  "expected": [
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "stage"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "python"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "sql"
+      ]
+    },
+    {
+      "kinds": [
+        "degree"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "master"
+      ]
+    }
+  ],
+  "notMentioned": [],
+  "forbidden": []
+}

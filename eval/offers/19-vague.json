@@ -1,0 +1,23 @@
+{
+  "id": "19-vague",
+  "text": "Poste de Data Scientist\nRejoignez une équipe dynamique ! Vous travaillerez sur des sujets passionnants autour de la donnée.\nNous cherchons une personne curieuse, autonome et motivée. Connaissances en statistiques souhaitées.",
+  "expected": [
+    {
+      "kinds": [
+        "hard_skill",
+        "tech",
+        "soft_skill"
+      ],
+      "importance": "preferred",
+      "keywords": [
+        "statistiques"
+      ]
+    }
+  ],
+  "notMentioned": [
+    "salary",
+    "contract",
+    "location"
+  ],
+  "forbidden": []
+}

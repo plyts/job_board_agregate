@@ -1,0 +1,44 @@
+{
+  "id": "22-driving-licence",
+  "text": "Technicien support informatique itinérant — Proxinet — Clermont-Ferrand\nInterventions sur site chez nos clients (PME) dans un rayon de 100 km.\nPermis B obligatoire, véhicule de service fourni.\nBac+2 en informatique, 1 an d'expérience en support utilisateurs.\nCDI, 26 000 € brut annuel, tickets restaurant.",
+  "expected": [
+    {
+      "kinds": [
+        "degree"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "bac"
+      ]
+    },
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "1"
+      ]
+    },
+    {
+      "kinds": [
+        "salary"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "26"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "cdi"
+      ]
+    }
+  ],
+  "notMentioned": [],
+  "forbidden": []
+}
