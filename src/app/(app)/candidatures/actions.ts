@@ -6,7 +6,18 @@ import { z } from "zod";
 import { getDb, getPool } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
 import { getApplicationsDeps } from "@/lib/applications-deps";
-import { APPLICATION_STATUSES, CHANNELS, confirmSend, createApplication, moveApplication, saveNotes, setNextAction } from "@/modules/applications";
+import {
+  addContact,
+  APPLICATION_STATUSES,
+  CHANNELS,
+  confirmSend,
+  createApplication,
+  deleteContact,
+  moveApplication,
+  saveCoverLetter,
+  saveNotes,
+  setNextAction,
+} from "@/modules/applications";
 import { logger } from "@/modules/platform";
 
 const Id = z.uuid();
@@ -56,7 +67,12 @@ export async function confirmSendAction(applicationId: string, _prev: Applicatio
     file = { kind: "cv_version" as const, cvVersionId: parsed.data.file };
   }
   try {
-    const result = await confirmSend(getApplicationsDeps(), user.id, applicationId, { sentAt: parsed.data.sentAt, channel: parsed.data.channel, file });
+    const result = await confirmSend(getApplicationsDeps(), user.id, applicationId, {
+      sentAt: parsed.data.sentAt,
+      channel: parsed.data.channel,
+      file,
+      attachLetter: formData.get("attachLetter") === "on",
+    });
     if (!result.ok) return { error: result.error };
   } catch (err) {
     logger.error({ err, userId: user.id }, "confirmation d'envoi en échec");
@@ -92,6 +108,48 @@ export async function saveNotesAction(applicationId: string, _prev: ApplicationA
   const notes = formData.get("notes");
   if (!Id.safeParse(applicationId).success || typeof notes !== "string" || notes.length > 10_000) return { error: "Notes invalides (10 000 caractères maximum)." };
   if (!(await saveNotes(getDb(), user.id, applicationId, notes))) return { error: "Candidature introuvable." };
+  refresh();
+  return { ok: true };
+}
+
+export async function saveCoverLetterAction(applicationId: string, _prev: ApplicationActionState, formData: FormData): Promise<ApplicationActionState> {
+  const user = await requireUser();
+  const text = formData.get("coverLetter");
+  if (!Id.safeParse(applicationId).success || typeof text !== "string" || text.length > 8000) return { error: "Lettre invalide (8 000 caractères maximum)." };
+  if (!(await saveCoverLetter(getDb(), user.id, applicationId, text))) return { error: "Candidature introuvable." };
+  refresh();
+  return { ok: true };
+}
+
+const optional = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .transform((v) => v || null);
+
+const Contact = z.object({
+  name: z.string().trim().min(1, "Nom requis").max(120),
+  role: optional(120),
+  email: z.union([z.literal(""), z.string().trim().pipe(z.email())]).transform((v) => v || null),
+  phone: optional(40),
+  url: z.union([z.literal(""), z.url({ protocol: /^https?$/ })]).transform((v) => v || null),
+  note: optional(500),
+});
+
+export async function addContactAction(applicationId: string, _prev: ApplicationActionState, formData: FormData): Promise<ApplicationActionState> {
+  const user = await requireUser();
+  const parsed = Contact.safeParse(Object.fromEntries(formData));
+  if (!Id.safeParse(applicationId).success) return { error: "Candidature inconnue." };
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message === "Nom requis" ? "Le nom du contact est requis." : "E-mail ou lien invalide." };
+  if (!(await addContact(getDb(), user.id, applicationId, parsed.data))) return { error: "Candidature introuvable." };
+  refresh();
+  return { ok: true };
+}
+
+export async function deleteContactAction(contactId: string): Promise<ApplicationActionState> {
+  const user = await requireUser();
+  if (!Id.safeParse(contactId).success || !(await deleteContact(getDb(), user.id, contactId))) return { error: "Contact introuvable." };
   refresh();
   return { ok: true };
 }

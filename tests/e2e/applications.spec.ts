@@ -38,7 +38,26 @@ test("suivre une candidature : Kanban au clavier, envoi confirmé avec fichier f
   await card.focus();
   await page.keyboard.press("Enter");
   await page.waitForURL(/\/candidatures\/[0-9a-f-]{36}$/);
+
+  // Contact saisi à la main.
+  const contacts = page.getByRole("region", { name: "Contacts" });
+  await contacts.getByText("Ajouter un contact").click();
+  await contacts.getByLabel("Nom").fill("Alex Martin");
+  await contacts.getByLabel("Rôle").fill("Talent acquisition");
+  await contacts.getByRole("button", { name: "Ajouter le contact" }).click();
+  await expect(contacts).toContainText("Talent acquisition");
+
+  // Lettre de motivation : un chiffre inventé est bloqué, la version prouvée est jointe et figée à l'envoi.
+  const letter = page.getByRole("region", { name: "Lettre de motivation" });
+  await letter.getByLabel("Lettre de motivation").fill("J'ai mené 12 projets.");
+  await letter.getByRole("button", { name: "Enregistrer la lettre" }).click();
+  await expect(letter).toContainText("le chiffre « 12 » n'apparaît pas dans le profil maître");
+  await letter.getByLabel("Lettre de motivation").fill("Data Engineer chez Lumio depuis 2023, j'ai industrialisé 30 pipelines Python et SQL.\n\nJe serais heureuse d'en parler avec vous.");
+  await letter.getByRole("button", { name: "Enregistrer la lettre" }).click();
+  await expect(letter).toContainText("✓ Chaque chiffre et chaque mot-clé de l'offre de la lettre a sa source");
+
   await page.getByRole("button", { name: "J'ai envoyé ma candidature" }).click();
+  await expect(page.getByRole("checkbox", { name: /Joindre la lettre de motivation/ })).toBeChecked();
   await page.getByLabel("Canal").selectOption({ label: "E-mail au recruteur" });
   await expect(page.getByRole("radio", { name: "CV personnalisé v1 (PDF)" })).toBeChecked();
   await page.getByRole("button", { name: "Confirmer l'envoi" }).click();
@@ -49,6 +68,8 @@ test("suivre une candidature : Kanban au clavier, envoi confirmé avec fichier f
   const docs = page.getByRole("region", { name: "Documents" });
   await expect(docs).toContainText(/sha256 [0-9a-f]{8}…[0-9a-f]{4}/);
   await expect(page.getByRole("region", { name: "Historique" })).toContainText("Envoi confirmé par toi");
+  await expect(page.getByRole("region", { name: "Historique" })).toContainText("lettre de motivation figée");
+  await expect(letter).toContainText("Lettre envoyée figée");
   await expect(page.getByRole("region", { name: "Historique" })).toContainText("Statut : Prête à envoyer → CV à adapter");
 
   const download = page.waitForEvent("download");
@@ -71,10 +92,23 @@ test("suivre une candidature : Kanban au clavier, envoi confirmé avec fichier f
     await page.reload();
     await expect(page.getByRole("region", { name: "Relance" })).toContainText(title);
   } else {
-    await page.getByRole("region", { name: "Étape" }).getByLabel("Étape").selectOption({ label: "Entretien RH" });
-    await page.getByRole("button", { name: "Déplacer" }).click();
-    await expect(page.getByText("● Entretien RH")).toBeVisible();
+    // Sur téléphone : l'étape se choisit dans la carte.
+    await page.getByLabel("Navigation principale").getByRole("link", { name: "Candidatures" }).click();
+    await page.getByRole("region", { name: "Envoyée" }).getByRole("listitem", { name: pattern }).getByLabel("Étape").selectOption({ label: "Entretien RH" });
+    await expect(page.getByText(/déplacée vers Entretien RH\./)).toBeAttached();
+    await page.reload();
+    await expect(page.getByRole("region", { name: "Entretien RH" })).toContainText(title);
   }
+
+  // Calendrier : l'envoi du jour figure dans le mois courant.
+  await page.goto("/candidatures?vue=calendrier");
+  await expect(page.getByRole("region", { name: "Calendrier" }).getByRole("link", { name: new RegExp(`Envoyée — Nordwave · ${title.replace(/[()]/g, "\\$&")}`) }).first()).toBeVisible();
+
+  // Par entreprise : offres, candidatures et contacts connus.
+  await page.goto("/candidatures?vue=entreprise");
+  const nordwave = page.getByRole("region", { name: "Nordwave" });
+  await expect(nordwave).toContainText(title);
+  await expect(nordwave).toContainText("Alex Martin (Talent acquisition)");
 
   // Vue tableau.
   await page.goto("/candidatures?vue=tableau");

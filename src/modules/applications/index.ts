@@ -1,5 +1,11 @@
 export * from "./rules";
 export {
+  addContact,
+  checkCoverLetter,
+  companyOverview,
+  coverLetterFile,
+  deleteContact,
+  saveCoverLetter,
   CHANNELS,
   confirmSend,
   createApplication,
@@ -15,5 +21,6 @@ export {
   type ApplicationRow,
   type ApplicationsDeps,
   type Channel,
+  type ContactInput,
   type SendInput,
 } from "./service";

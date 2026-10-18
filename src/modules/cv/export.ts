@@ -125,18 +125,19 @@ const INK = rgb(0.055, 0.09, 0.149);
 const MUTED = rgb(0.33, 0.36, 0.42);
 const ACCENT = rgb(0.059, 0.431, 0.4);
 
-/** PDF texte (sélectionnable, lisible par les ATS), sans navigateur. Même version → même fichier. */
-export async function exportPdf(cv: CvContent, profile: ProfileContent, meta: ExportMeta): Promise<Uint8Array> {
-  const m = exportModel(cv, profile);
+type WriteOptions = { font?: PDFFont; size?: number; color?: ReturnType<typeof rgb>; indent?: number; gap?: number; bullet?: boolean };
+
+/** Mise en page A4 d'une colonne, police standard, métadonnées fixées : même contenu → même fichier. */
+async function pdfWriter(meta: { title: string; author: string; date: Date }) {
   const pdf = await PDFDocument.create();
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  pdf.setTitle(toWinAnsi(`${m.name} — CV v${meta.version}`));
-  pdf.setAuthor(toWinAnsi(m.name));
+  pdf.setTitle(toWinAnsi(meta.title));
+  pdf.setAuthor(toWinAnsi(meta.author));
   pdf.setCreator("JobPilot");
   pdf.setProducer("JobPilot");
-  pdf.setCreationDate(meta.createdAt);
-  pdf.setModificationDate(meta.createdAt);
+  pdf.setCreationDate(meta.date);
+  pdf.setModificationDate(meta.date);
 
   const width = A4.width - 2 * MARGIN;
   let page: PDFPage = pdf.addPage([A4.width, A4.height]);
@@ -147,7 +148,7 @@ export async function exportPdf(cv: CvContent, profile: ProfileContent, meta: Ex
       y = A4.height - MARGIN;
     }
   };
-  const write = (text: string, opts: { font?: PDFFont; size?: number; color?: ReturnType<typeof rgb>; indent?: number; gap?: number; bullet?: boolean }) => {
+  const write = (text: string, opts: WriteOptions = {}) => {
     const font = opts.font ?? regular;
     const size = opts.size ?? 10;
     const indent = opts.indent ?? 0;
@@ -160,21 +161,86 @@ export async function exportPdf(cv: CvContent, profile: ProfileContent, meta: Ex
       page.drawText(line, { x: MARGIN + indent, y, size, font, color: opts.color ?? INK });
     });
   };
-
-  write(m.name, { font: bold, size: 18 });
-  if (m.headline) write(m.headline, { size: 11, gap: 2 });
-  if (m.contact.length) write(m.contact.join(" · "), { size: 9, color: MUTED, gap: 2 });
-  for (const s of m.sections) {
-    ensure(40);
-    write(s.title.toUpperCase(), { font: bold, size: 10.5, color: ACCENT, gap: 14 });
+  const rule = () => {
     y -= 3;
     page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + width, y }, thickness: 0.6, color: ACCENT });
     y -= 2;
+  };
+  return { write, rule, ensure, regular, bold, save: () => pdf.save({ useObjectStreams: false }) };
+}
+
+/** PDF texte (sélectionnable, lisible par les ATS), sans navigateur. Même version → même fichier. */
+export async function exportPdf(cv: CvContent, profile: ProfileContent, meta: ExportMeta): Promise<Uint8Array> {
+  const m = exportModel(cv, profile);
+  const w = await pdfWriter({ title: `${m.name} — CV v${meta.version}`, author: m.name, date: meta.createdAt });
+  w.write(m.name, { font: w.bold, size: 18 });
+  if (m.headline) w.write(m.headline, { size: 11, gap: 2 });
+  if (m.contact.length) w.write(m.contact.join(" · "), { size: 9, color: MUTED, gap: 2 });
+  for (const s of m.sections) {
+    w.ensure(40);
+    w.write(s.title.toUpperCase(), { font: w.bold, size: 10.5, color: ACCENT, gap: 14 });
+    w.rule();
     for (const b of s.blocks) {
-      if (b.kind === "heading") write(b.text, { font: bold, gap: 6 });
-      else if (b.kind === "bullet") write(b.text, { indent: 12, bullet: true, gap: 1 });
-      else write(b.text, { gap: 2 });
+      if (b.kind === "heading") w.write(b.text, { font: w.bold, gap: 6 });
+      else if (b.kind === "bullet") w.write(b.text, { indent: 12, bullet: true, gap: 1 });
+      else w.write(b.text, { gap: 2 });
     }
   }
-  return pdf.save({ useObjectStreams: false });
+  return w.save();
+}
+
+// --- Lettre de motivation ---------------------------------------------------------------------
+
+export type LetterMeta = { offerTitle: string; company: string | null; date: Date; city: string | null };
+
+const longDate = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+const paragraphs = (text: string) =>
+  text
+    .split(/\n\s*\n/)
+    .map((p) => p.replace(/\s*\n\s*/g, " ").trim())
+    .filter(Boolean);
+
+export function letterFileName(profile: ProfileContent, meta: LetterMeta, format: ExportFormat): string {
+  const slug = (s: string) =>
+    s
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^A-Za-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40);
+  return `${["Lettre", slug(profile.identity.fullName), meta.company ? slug(meta.company) : null].filter(Boolean).join("-")}.${format}`;
+}
+
+/** Lettre en PDF : en-tête du candidat, lieu et date, objet, paragraphes. */
+export async function exportLetterPdf(text: string, profile: ProfileContent, meta: LetterMeta): Promise<Uint8Array> {
+  const { identity } = profile;
+  const name = identity.fullName || "Candidat";
+  const w = await pdfWriter({ title: `${name} — Lettre de motivation`, author: name, date: meta.date });
+  w.write(name, { font: w.bold, size: 14 });
+  const contact = [identity.location, identity.email, identity.phone].filter((x): x is string => Boolean(x));
+  if (contact.length) w.write(contact.join(" · "), { size: 9, color: MUTED, gap: 2 });
+  w.write(`${meta.city ?? identity.location ?? ""}${meta.city || identity.location ? ", le " : "Le "}${longDate.format(meta.date)}`, { gap: 24 });
+  w.write(`Objet : candidature au poste de ${meta.offerTitle}${meta.company ? ` chez ${meta.company}` : ""}`, { font: w.bold, gap: 18 });
+  for (const p of paragraphs(text)) w.write(p, { size: 10.5, gap: 12 });
+  w.write(name, { gap: 24 });
+  return w.save();
+}
+
+export async function exportLetterDocx(text: string, profile: ProfileContent, meta: LetterMeta): Promise<Buffer> {
+  const { identity } = profile;
+  const name = identity.fullName || "Candidat";
+  const contact = [identity.location, identity.email, identity.phone].filter((x): x is string => Boolean(x));
+  const children = [
+    new Paragraph({ children: [new TextRun({ text: name, bold: true, size: 28 })] }),
+    ...(contact.length ? [new Paragraph({ children: [new TextRun({ text: contact.join(" · "), size: 18, color: "555555" })] })] : []),
+    new Paragraph({ children: [new TextRun({ text: `${meta.city ?? identity.location ?? ""}${meta.city || identity.location ? ", le " : "Le "}${longDate.format(meta.date)}`, size: 21 })], spacing: { before: 400 } }),
+    new Paragraph({
+      children: [new TextRun({ text: `Objet : candidature au poste de ${meta.offerTitle}${meta.company ? ` chez ${meta.company}` : ""}`, bold: true, size: 21 })],
+      spacing: { before: 300, after: 200 },
+    }),
+    ...paragraphs(text).map((p) => new Paragraph({ children: [new TextRun({ text: p, size: 21 })], spacing: { after: 200 } })),
+    new Paragraph({ children: [new TextRun({ text: name, size: 21 })], spacing: { before: 300 } }),
+  ];
+  const doc = new Document({ creator: "JobPilot", title: `${name} — Lettre de motivation`, sections: [{ children }] });
+  return Packer.toBuffer(doc);
 }

@@ -100,7 +100,7 @@ export function KanbanBoard({ cards }: { cards: CardView[] }) {
   return (
     <div className="flex flex-col gap-3">
       <p id="kanban-aide" className="text-[13px] text-muted-foreground">
-        Déplacer : glisser-déposer, ou sélectionner une carte (Tab) puis ← →. Entrée ouvre la fiche. Sur téléphone, change l&apos;étape depuis la fiche.
+        Déplacer : glisser-déposer, ou sélectionner une carte (Tab) puis ← →. Entrée ouvre la fiche. Sur téléphone : choisis l&apos;étape dans la carte.
       </p>
       {alert ? (
         <p role="alert" className="rounded-lg border border-danger bg-panel px-4 py-2.5 text-sm text-danger">
@@ -166,6 +166,20 @@ export function KanbanBoard({ cards }: { cards: CardView[] }) {
                       <span className={cn("whitespace-nowrap font-mono text-xs font-medium", scoreTone(c.score))}>{c.score === null ? "—" : `${c.score}/100`}</span>
                     </div>
                     <span className="text-[13px] text-muted-foreground">{[c.company, c.location].filter(Boolean).join(" · ") || "Entreprise non renseignée"}</span>
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground md:hidden">
+                      Étape
+                      <select
+                        value={c.status}
+                        onChange={(e) => move(c, e.target.value as ApplicationStatus)}
+                        className="min-h-10 flex-1 rounded-md border border-border bg-panel px-2 text-sm text-foreground"
+                      >
+                        {APPLICATION_STATUSES.map((s) => (
+                          <option key={s} value={s}>
+                            {STATUS_META[s].label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                     {c.nextAction ? (
                       <span className={cn("text-xs", c.overdue ? "font-semibold text-danger" : "text-muted-foreground")}>
                         {c.overdue ? "! En retard · " : ""}

@@ -29,6 +29,7 @@ Implémentation actuelle : les candidatures (`src/app/(app)/candidatures/actions
 | GET | `/api/matches/:id` | Score, facteurs, items | `200 MatchAnalysis` |
 | GET | `/api/cv/:versionId/export?format=pdf\|docx` | Télécharge une version enregistrée ou finalisée (jamais un brouillon), en pièce jointe | `200` fichier / `400 INVALID_FORMAT` / `401` / `404` (brouillon, version d'un autre compte) |
 | GET | `/api/applications/documents/:documentId` | Fichier réellement envoyé, en pièce jointe, après vérification de son SHA-256 | `200` fichier / `401` / `404` / `409 INTEGRITY_CHECK_FAILED` (fichier altéré ou absent) |
+| GET | `/api/applications/:applicationId/letter?format=pdf\|docx` | Aperçu de la lettre de motivation en brouillon, en pièce jointe | `200` fichier / `400` / `401` / `404` |
 | POST | `/api/applications` | `{ offerId, cvVersionId? }` | `201` / `409 APPLICATION_EXISTS` |
 | PATCH | `/api/applications/:id` | Statut, prochaine action, notes | `200` (crée un événement) |
 | POST | `/api/applications/:id/send-confirmation` | `{ sentAt, channel, documentId }` — fige le document | `200` |

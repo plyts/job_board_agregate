@@ -1,5 +1,5 @@
 export * from "./content";
-export { factCheck, hasBlocking, offerTermsFrom, type FactIssue } from "./factcheck";
+export { factCheck, hasBlocking, letterFactCheck, offerTermsFrom, type FactIssue } from "./factcheck";
 export { lineDiff, type DiffLine } from "./diff";
 export {
   acceptSuggestion,

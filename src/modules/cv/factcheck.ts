@@ -105,3 +105,32 @@ export function offerTermsFrom(requirements: { kind: string; label: string }[]):
   }
   return [...out];
 }
+
+/**
+ * Contrôle des faits d'une lettre de motivation : texte libre, mais chaque chiffre doit apparaître dans le
+ * profil maître (ou être une année ou une durée calculée sur ses dates), et chaque mot-clé de l'offre doit y
+ * avoir une preuve.
+ */
+export function letterFactCheck(text: string, profile: ProfileContent, offerTerms: string[] = [], today = new Date()): FactIssue[] {
+  const issues: FactIssue[] = [];
+  const sources = [
+    profile.summary ?? "",
+    ...evidenceElements(profile).map((e) => e.text),
+    ...profile.projects.map((p) => p.year ?? ""),
+    ...profile.education.map((d) => d.year ?? ""),
+    ...profile.certifications.map((c) => c.year ?? ""),
+    ...profile.skills.filter((s) => s.level !== "unconfirmed").map((s) => s.name),
+    ...profile.languages.map((l) => `${l.name} ${l.level ?? ""}`),
+  ].join(" \n ");
+  const years = profile.experiences.flatMap((e) => [e.start, e.end]).filter((m): m is string => Boolean(m)).map((m) => String(Number(m.slice(0, 4))));
+  const allowed = new Set([...numbers(sources), ...years, String(Math.floor(professionalMonths(profile, today).months / 12))]);
+  for (const n of new Set(numbers(text))) {
+    if (!allowed.has(n)) issues.push({ severity: "blocking", sourceId: null, message: `Lettre : le chiffre « ${n} » n'apparaît pas dans le profil maître.` });
+  }
+  for (const term of offerTerms) {
+    if (containsTerm(text, term) && !containsTerm(sources, term)) {
+      issues.push({ severity: "blocking", sourceId: null, message: `Lettre : « ${term} » est mis en avant sans preuve dans le profil maître.` });
+    }
+  }
+  return issues;
+}

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { NextActionForm, NotesForm, SendForm, StatusForm } from "@/components/applications/ApplicationForms";
+import { ContactForm, DeleteContactButton, LetterForm, NextActionForm, NotesForm, SendForm, StatusForm } from "@/components/applications/ApplicationForms";
 import { EVENT_LABELS, STATUS_META } from "@/components/applications/labels";
 import { Panel } from "@/components/ui/Panel";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -9,7 +9,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
 import { cn } from "@/lib/cn";
-import { CHANNELS, CLOSED, getApplication, isOverdue, localDate, type ApplicationStatus, type Channel } from "@/modules/applications";
+import { CHANNELS, checkCoverLetter, CLOSED, getApplication, isOverdue, localDate, type ApplicationStatus, type Channel } from "@/modules/applications";
 import { getVersion } from "@/modules/profile";
 
 export const metadata: Metadata = { title: "Candidature" };
@@ -28,7 +28,7 @@ function describe(e: { type: keyof typeof EVENT_LABELS; fromStatus: ApplicationS
     case "status_changed":
       return `Statut : ${statusLabel(e.fromStatus)} → ${statusLabel(e.toStatus)}${typeof p.nextActionAt === "string" ? ` · relance proposée le ${fmt(p.nextActionAt)}` : ""}`;
     case "sent":
-      return `Envoi confirmé par toi le ${fmt(String(p.sentAt))} · ${CHANNELS[p.channel as Channel] ?? "canal inconnu"} · ${String(p.fileName)} figé (sha256 ${shortHash(String(p.sha256))})`;
+      return `Envoi confirmé par toi le ${fmt(String(p.sentAt))} · ${CHANNELS[p.channel as Channel] ?? "canal inconnu"} · ${String(p.fileName)} figé (sha256 ${shortHash(String(p.sha256))})${typeof p.letterSha256 === "string" ? ` · lettre de motivation figée (sha256 ${shortHash(p.letterSha256)})` : ""}`;
     case "next_action_set":
       return `Prochaine action : ${p.nextAction ? String(p.nextAction) : "aucune"}${typeof p.nextActionAt === "string" ? ` · échéance ${fmt(p.nextActionAt)}` : ""}`;
   }
@@ -40,10 +40,13 @@ export default async function ApplicationPage(props: PageProps<"/candidatures/[i
   const db = getDb();
   const found = await getApplication(db, user.id, id);
   if (!found) notFound();
-  const { application: app, offer, company, documents, events, versions } = found;
+  const { application: app, offer, company, documents, events, versions, contacts } = found;
   const chosen = versions.find((v) => v.id === app.cvVersionId) ?? null;
   const base = chosen ? await getVersion(db, user.id, chosen.baseProfileVersionId) : null;
-  const sentDoc = documents[0] ?? null;
+  const sentDoc = documents.find((d) => d.kind === "cv") ?? null;
+  const sentLetter = documents.find((d) => d.kind === "cover_letter") ?? null;
+  const letterCheck = app.coverLetter.trim() ? await checkCoverLetter(db, user.id, app.id) : null;
+  const letterBlocking = letterCheck?.issues.filter((i) => i.severity === "blocking") ?? [];
   const meta = STATUS_META[app.status];
   const today = localDate();
   const late = isOverdue(app.nextActionAt, today);
@@ -149,9 +152,48 @@ export default async function ApplicationPage(props: PageProps<"/candidatures/[i
                     </>
                   ) : null}
                 </p>
-                <SendForm id={app.id} today={today} versions={finalized.map((v) => ({ id: v.id, label: `CV personnalisé v${v.version} (PDF)` }))} channels={CHANNELS} />
+                <SendForm
+                  id={app.id}
+                  today={today}
+                  versions={finalized.map((v) => ({ id: v.id, label: `CV personnalisé v${v.version} (PDF)` }))}
+                  channels={CHANNELS}
+                  letter={!app.coverLetter.trim() ? "none" : letterBlocking.length ? "blocked" : "ok"}
+                />
               </>
             )}
+          </Panel>
+
+          <Panel aria-label="Lettre de motivation" className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-lg font-semibold tracking-tight">Lettre de motivation</h2>
+              <span className="text-[13px] text-muted-foreground">Facultative · {app.coverLetter.trim() ? `${app.coverLetter.trim().split(/\s+/).length} mots` : "vide"}</span>
+            </div>
+            {sentLetter ? (
+              <p className="text-sm">
+                Lettre envoyée figée : <span className="break-all">{sentLetter.fileName}</span> · sha256 <span className="font-mono">{shortHash(sentLetter.sha256)}</span> ·{" "}
+                <a href={`/api/applications/documents/${sentLetter.id}`}>Télécharger</a>
+              </p>
+            ) : null}
+            {letterCheck ? (
+              letterBlocking.length ? (
+                <ul className="flex flex-col gap-1" aria-label="Contrôle des faits de la lettre">
+                  {letterBlocking.map((i) => (
+                    <li key={i.message} className="text-sm text-danger">
+                      ! {i.message}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-accent">✓ Chaque chiffre et chaque mot-clé de l&apos;offre de la lettre a sa source dans le profil maître.</p>
+              )
+            ) : null}
+            <LetterForm key={app.coverLetter} id={app.id} text={app.coverLetter} />
+            {app.coverLetter.trim() ? (
+              <p className="flex gap-3 text-sm">
+                <a href={`/api/applications/${app.id}/letter?format=pdf`}>Aperçu PDF</a>
+                <a href={`/api/applications/${app.id}/letter?format=docx`}>DOCX</a>
+              </p>
+            ) : null}
           </Panel>
 
           <Panel aria-label="Historique" className="flex flex-col gap-2">
@@ -180,6 +222,36 @@ export default async function ApplicationPage(props: PageProps<"/candidatures/[i
               </p>
             ) : null}
             <NextActionForm key={`${app.nextAction}-${app.nextActionAt}`} id={app.id} nextAction={app.nextAction} nextActionAt={app.nextActionAt} followUpDays={app.followUpDays} />
+          </Panel>
+          <Panel aria-label="Contacts" className="flex flex-col gap-3">
+            <h2 className="text-base font-semibold">Contacts</h2>
+            {contacts.length ? (
+              <ul className="flex flex-col gap-2.5">
+                {contacts.map((c) => (
+                  <li key={c.id} className="flex flex-col gap-0.5 border-b border-border pb-2.5 text-sm last:border-0">
+                    <span className="font-semibold">{c.name}</span>
+                    {c.role ? <span className="text-muted-foreground">{c.role}</span> : null}
+                    {c.email ? <a href={`mailto:${c.email}`}>{c.email}</a> : null}
+                    {c.phone ? <span>{c.phone}</span> : null}
+                    {c.url ? (
+                      <a href={c.url} rel="noopener noreferrer nofollow" target="_blank" className="break-all">
+                        {c.url}
+                      </a>
+                    ) : null}
+                    {c.note ? <span className="text-[13px] text-muted-foreground">{c.note}</span> : null}
+                    <DeleteContactButton id={c.id} name={c.name} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">Aucun contact. Saisis-les toi-même : ils ne sont jamais envoyés à un modèle.</p>
+            )}
+            <details>
+              <summary className="cursor-pointer text-sm font-semibold text-accent">Ajouter un contact</summary>
+              <div className="pt-3">
+                <ContactForm id={app.id} />
+              </div>
+            </details>
           </Panel>
           <Panel aria-label="Notes" className="flex flex-col gap-3">
             <h2 className="text-base font-semibold">Notes</h2>

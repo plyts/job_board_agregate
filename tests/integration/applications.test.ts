@@ -7,7 +7,21 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createPool } from "@/db/client";
 import { applicationDocuments, applicationEvents, applications, jobOffers } from "@/db/schema";
 import { analyzeOffer } from "@/modules/analysis";
-import { confirmSend, createApplication, getApplication, listApplications, moveApplication, readSentDocument, setNextAction, SEND_REQUIRED } from "@/modules/applications";
+import {
+  addContact,
+  checkCoverLetter,
+  confirmSend,
+  coverLetterFile,
+  createApplication,
+  deleteContact,
+  getApplication,
+  listApplications,
+  moveApplication,
+  readSentDocument,
+  saveCoverLetter,
+  SEND_REQUIRED,
+  setNextAction,
+} from "@/modules/applications";
 import { checkpointCvDraft, exportCvVersion, finalizeCvVersion, recheckCv, startCvDraft } from "@/modules/cv";
 import { createUser } from "@/modules/identity";
 import { computeMatch, getCvCheck, requestMatch } from "@/modules/matching";
@@ -161,6 +175,49 @@ describe("candidatures", async () => {
     const app = (await getApplication(db, userId, id))!;
     expect(app.documents[0]).toMatchObject({ fileName: "Mon CV final.pdf", cvVersionId: null });
     expect(app.application.status).toBe("sent");
+  });
+
+  it("joint et fige la lettre de motivation seulement si ses faits sont prouvés", async () => {
+    const versionId = await finalizedCv();
+    const created = await createApplication(db, pool, userId, offerId);
+    if (!created.ok) throw new Error(created.message);
+    const id = created.applicationId;
+    expect(await saveCoverLetter(db, userId, id, "J'ai mené 12 projets dbt.")).toBe(true);
+    expect((await checkCoverLetter(db, userId, id))!.issues.map((i) => i.message)).toEqual([
+      "Lettre : le chiffre « 12 » n'apparaît pas dans le profil maître.",
+      "Lettre : « dbt » est mis en avant sans preuve dans le profil maître.",
+    ]);
+    const send = { sentAt: "2026-10-18", channel: "email" as const, file: { kind: "cv_version" as const, cvVersionId: versionId }, attachLetter: true };
+    expect(await confirmSend(deps, userId, id, send, NOW)).toMatchObject({ ok: false, error: expect.stringContaining("Lettre non jointe") });
+    expect((await getApplication(db, userId, id))!.application.sentAt).toBeNull();
+
+    expect(await saveCoverLetter(db, userId, id, "Data Engineer depuis 2021, j'ai industrialisé 30 pipelines Python chez Lumio.\n\nJe serais ravie d'en parler.")).toBe(true);
+    expect((await checkCoverLetter(db, userId, id))!.issues).toEqual([]);
+    expect(await coverLetterFile(db, userId, id, "pdf")).toMatchObject({ ok: true, contentType: "application/pdf" });
+    const sent = await confirmSend(deps, userId, id, send, NOW);
+    if (!sent.ok) throw new Error(sent.error);
+    const app = (await getApplication(db, userId, id))!;
+    expect(app.documents.map((d) => d.kind)).toEqual(["cv", "cover_letter"]);
+    const letterDoc = app.documents[1]!;
+    expect(app.events.at(-1)!.payload).toMatchObject({ letterSha256: letterDoc.sha256 });
+    const read = await readSentDocument(deps, userId, letterDoc.id);
+    if (!read.ok) throw new Error(read.message);
+    expect(createHash("sha256").update(read.bytes).digest("hex")).toBe(letterDoc.sha256);
+    await expect(db.update(applicationDocuments).set({ fileName: "x" }).where(eq(applicationDocuments.id, letterDoc.id))).rejects.toBeTruthy();
+  });
+
+  it("gère les contacts d'une candidature, isolés par compte", async () => {
+    const created = await createApplication(db, pool, userId, offerId);
+    if (!created.ok) throw new Error(created.message);
+    const id = created.applicationId;
+    expect(await addContact(db, userId, id, { name: "Alex Recruteur", role: "Talent acquisition", email: "alex@nordwave.example", phone: null, url: null, note: "Rencontré au salon" })).toBe(true);
+    const intruder = (await createUser(db, { email: "g@exemple.fr", displayName: "G", password: "un mot de passe solide" })).id;
+    expect(await addContact(db, intruder, id, { name: "X", role: null, email: null, phone: null, url: null, note: null })).toBe(false);
+    const [contact] = (await getApplication(db, userId, id))!.contacts;
+    expect(contact).toMatchObject({ name: "Alex Recruteur", role: "Talent acquisition" });
+    expect(await deleteContact(db, intruder, contact!.id)).toBe(false);
+    expect(await deleteContact(db, userId, contact!.id)).toBe(true);
+    expect((await getApplication(db, userId, id))!.contacts).toEqual([]);
   });
 
   it("enregistre la prochaine action et la journalise", async () => {

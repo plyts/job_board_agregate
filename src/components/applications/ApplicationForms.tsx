@@ -2,8 +2,11 @@
 
 import { useActionState, useState, useTransition } from "react";
 import {
+  addContactAction,
   confirmSendAction,
+  deleteContactAction,
   moveApplicationAction,
+  saveCoverLetterAction,
   saveNotesAction,
   setNextActionAction,
   type ApplicationActionState,
@@ -69,7 +72,20 @@ export type VersionOption = { id: string; label: string };
  * Confirmation d'envoi en deux temps : l'utilisateur envoie lui-même, puis déclare la date, le canal
  * et le fichier exact. Le fichier est alors copié, haché et figé.
  */
-export function SendForm({ id, today, versions, channels }: { id: string; today: string; versions: VersionOption[]; channels: Record<string, string> }) {
+export function SendForm({
+  id,
+  today,
+  versions,
+  channels,
+  letter,
+}: {
+  id: string;
+  today: string;
+  versions: VersionOption[];
+  channels: Record<string, string>;
+  /** État de la lettre de motivation : absente, jointe possible, ou bloquée par le contrôle des faits. */
+  letter: "none" | "ok" | "blocked";
+}) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState(versions[0]?.id ?? "upload");
   const [state, action, pending] = useActionState<ApplicationActionState, FormData>(confirmSendAction.bind(null, id), {});
@@ -121,6 +137,13 @@ export function SendForm({ id, today, versions, channels }: { id: string; today:
         ) : null}
         {versions.length === 0 ? <p className="text-[13px] text-muted-foreground">Aucune version finalisée du CV de cette offre : finalise-la depuis l&apos;éditeur, ou joins le fichier envoyé.</p> : null}
       </fieldset>
+      {letter !== "none" ? (
+        <label className="flex min-h-10 items-center gap-2 text-sm">
+          <input type="checkbox" name="attachLetter" disabled={letter === "blocked"} defaultChecked={letter === "ok"} className="size-4 accent-[var(--accent)]" />
+          Joindre la lettre de motivation (PDF)
+          {letter === "blocked" ? <span className="text-[13px] text-danger">: bloquée par le contrôle des faits</span> : null}
+        </label>
+      ) : null}
       <p className="text-[13px] text-muted-foreground">
         Une copie exacte du fichier est enregistrée avec son empreinte SHA-256 et ne pourra plus être remplacée. Une relance est proposée selon le délai choisi.
       </p>
@@ -189,5 +212,80 @@ export function NotesForm({ id, notes }: { id: string; notes: string }) {
       </Button>
       <Feedback state={state} ok="Notes enregistrées." />
     </form>
+  );
+}
+
+export function LetterForm({ id, text }: { id: string; text: string }) {
+  const [state, action, pending] = useActionState<ApplicationActionState, FormData>(saveCoverLetterAction.bind(null, id), {});
+  return (
+    <form action={action} className="flex flex-col gap-2">
+      <Label>
+        <span className="sr-only">Lettre de motivation</span>
+        <Textarea
+          name="coverLetter"
+          rows={10}
+          maxLength={8000}
+          defaultValue={text}
+          placeholder="Trois paragraphes : pourquoi cette entreprise, ce que tu apportes (faits du profil maître), la suite proposée. Sépare les paragraphes par une ligne vide."
+        />
+      </Label>
+      <Button type="submit" disabled={pending} className="self-start">
+        {pending ? "Enregistrement…" : "Enregistrer la lettre"}
+      </Button>
+      <Feedback state={state} ok="Lettre enregistrée et vérifiée." />
+    </form>
+  );
+}
+
+export function ContactForm({ id }: { id: string }) {
+  const [state, action, pending] = useActionState<ApplicationActionState, FormData>(addContactAction.bind(null, id), {});
+  return (
+    <form action={action} key={state.ok ? "reset" : "form"} className="flex flex-col gap-2.5">
+      <Label>
+        Nom
+        <Input name="name" required maxLength={120} />
+      </Label>
+      <Label>
+        Rôle
+        <Input name="role" maxLength={120} placeholder="Recruteur, manager…" />
+      </Label>
+      <Label>
+        E-mail
+        <Input name="email" type="email" maxLength={200} />
+      </Label>
+      <Label>
+        Téléphone
+        <Input name="phone" maxLength={40} />
+      </Label>
+      <Label>
+        Lien (profil, page)
+        <Input name="url" type="url" maxLength={300} placeholder="https://" />
+      </Label>
+      <Label>
+        Note
+        <Input name="note" maxLength={500} />
+      </Label>
+      <Button type="submit" disabled={pending} className="self-start">
+        {pending ? "Ajout…" : "Ajouter le contact"}
+      </Button>
+      <Feedback state={state} />
+    </form>
+  );
+}
+
+export function DeleteContactButton({ id, name }: { id: string; name: string }) {
+  const [pending, startTransition] = useTransition();
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      aria-label={`Supprimer le contact ${name}`}
+      onClick={() => {
+        if (window.confirm(`Supprimer le contact ${name} ?`)) startTransition(async () => void (await deleteContactAction(id)));
+      }}
+      className="min-h-9 text-sm font-semibold text-danger hover:underline"
+    >
+      Supprimer
+    </button>
   );
 }

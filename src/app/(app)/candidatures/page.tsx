@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CalendarView } from "@/components/applications/CalendarView";
+import { CompanyView } from "@/components/applications/CompanyView";
 import { KanbanBoard, type CardView } from "@/components/applications/KanbanBoard";
 import { STATUS_META } from "@/components/applications/labels";
 import { ButtonLink } from "@/components/ui/Button";
@@ -9,14 +11,14 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
 import { cn } from "@/lib/cn";
-import { APPLICATION_STATUSES, CHANNELS, CLOSED, isOverdue, listApplications, localDate, type ApplicationRow, type Channel } from "@/modules/applications";
+import { APPLICATION_STATUSES, CHANNELS, CLOSED, companyOverview, isOverdue, listApplications, localDate, type ApplicationRow, type Channel } from "@/modules/applications";
 
 export const metadata: Metadata = { title: "Candidatures" };
 
 const day = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", timeZone: "UTC" });
 const fmt = (d: string | null) => (d ? day.format(new Date(`${d}T00:00:00Z`)) : null);
 
-type Params = { vue?: string; q?: string; retard?: string; score?: string; sansaction?: string; tri?: string };
+type Params = { vue?: string; q?: string; retard?: string; score?: string; sansaction?: string; tri?: string; mois?: string };
 
 const SORTS = {
   echeance: (a: ApplicationRow, b: ApplicationRow) => (a.nextActionAt ?? "9999").localeCompare(b.nextActionAt ?? "9999"),
@@ -82,10 +84,12 @@ export default async function ApplicationsPage(props: PageProps<"/candidatures">
         eyebrow={`Suivi · ${active} candidature${active > 1 ? "s" : ""} active${active > 1 ? "s" : ""}${overdue ? ` · ${overdue} en retard` : ""}`}
         title="Candidatures"
         actions={
-          <div role="group" aria-label="Vue" className="flex gap-1 rounded-lg border border-border bg-panel p-1">
+          <div role="group" aria-label="Vue" className="flex flex-wrap gap-1 rounded-lg border border-border bg-panel p-1">
             {[
               ["kanban", "Kanban"],
               ["tableau", "Tableau"],
+              ["calendrier", "Calendrier"],
+              ["entreprise", "Par entreprise"],
             ].map(([id, label]) => {
               const on = (params.vue ?? "kanban") === id;
               return (
@@ -126,7 +130,16 @@ export default async function ApplicationsPage(props: PageProps<"/candidatures">
             </span>
           </form>
 
-          {table ? (
+          {params.vue === "calendrier" ? (
+            <CalendarView
+              rows={rows}
+              month={/^\d{4}-\d{2}$/.test(params.mois ?? "") ? params.mois! : today.slice(0, 7)}
+              today={today}
+              href={(m) => href(params, { mois: m })}
+            />
+          ) : params.vue === "entreprise" ? (
+            <CompanyView groups={(await companyOverview(getDb(), user.id)).filter((g) => !q || (g.company ?? "").toLowerCase().includes(q) || g.offers.some((o) => o.title.toLowerCase().includes(q)))} />
+          ) : table ? (
             <div className="overflow-x-auto rounded-xl border border-border bg-panel">
               <table className="w-full min-w-[48rem] text-sm">
                 <thead>

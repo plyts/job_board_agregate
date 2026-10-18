@@ -21,6 +21,7 @@ export const applicationStatus = pgEnum("application_status", [
 ]);
 
 export const applicationEventType = pgEnum("application_event_type", ["created", "status_changed", "sent", "next_action_set"]);
+export const applicationDocumentKind = pgEnum("application_document_kind", ["cv", "cover_letter"]);
 
 /**
  * Candidature : suivi d'une offre jusqu'à la réponse. Une seule candidature active par offre ;
@@ -49,6 +50,8 @@ export const applications = pgTable(
     sentAt: date("sent_at", { mode: "string" }),
     channel: text("channel"),
     notes: text("notes").notNull().default(""),
+    /** Lettre de motivation (brouillon) ; la version envoyée est figée dans `application_documents`. */
+    coverLetter: text("cover_letter").notNull().default(""),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -74,6 +77,7 @@ export const applicationDocuments = pgTable(
     applicationId: uuid("application_id")
       .notNull()
       .references(() => applications.id, { onDelete: "cascade" }),
+    kind: applicationDocumentKind("kind").notNull().default("cv"),
     storageKey: text("storage_key").notNull(),
     sha256: text("sha256").notNull(),
     sizeBytes: integer("size_bytes").notNull(),
@@ -104,4 +108,29 @@ export const applicationEvents = pgTable(
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("application_events_user_time_idx").on(t.userId, t.occurredAt), index("application_events_app_idx").on(t.applicationId, t.occurredAt)],
+);
+
+/**
+ * Contacts d'une candidature (recruteur, manager…), saisis à la main. Données de tiers :
+ * jamais envoyées à un modèle, supprimées avec la candidature ou le compte.
+ */
+export const applicationContacts = pgTable(
+  "application_contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    applicationId: uuid("application_id")
+      .notNull()
+      .references(() => applications.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    role: text("role"),
+    email: text("email"),
+    phone: text("phone"),
+    url: text("url"),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("application_contacts_app_idx").on(t.applicationId)],
 );

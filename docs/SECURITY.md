@@ -16,7 +16,7 @@
 
 ## Données personnelles (RGPD)
 
-- Données : CV, coordonnées, historique de candidatures, contacts de recruteurs (saisis manuellement).
+- Données : CV, coordonnées, historique de candidatures, lettres de motivation, contacts de recruteurs (données de tiers, saisies manuellement, jamais envoyées à un modèle, liens limités à http/https).
 - Base légale : usage personnel ; consentement explicite avant le premier envoi de contenu au fournisseur IA, révocable.
 - Minimisation : coordonnées retirées du texte envoyé au modèle (extraction, matching, suggestions de CV) et du profil transmis à l'éditeur dans le navigateur ; elles ne figurent que dans les exports PDF/DOCX, servis en pièce jointe, `Cache-Control: private, no-store`, à leur seul propriétaire ; logs sans contenu personnel.
 - Fournisseurs IA : chaque requête est classée `public` (annonce) ou `personal` (CV, candidature). Une donnée personnelle n'est envoyée qu'à un fournisseur explicitement autorisé (`<P>_ALLOW_PERSONAL_DATA=true`) ; refus par défaut, sauf modèle local. Plusieurs offres gratuites réutilisent les contenus (ADR 0006).

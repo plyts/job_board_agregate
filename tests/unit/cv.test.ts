@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { cvAsProfile, cvFromProfile, renderCv, type CvContent } from "@/modules/cv/content";
 import { lineDiff } from "@/modules/cv/diff";
 import { compareCoverage, type CompareItem } from "@/modules/cv/recheck";
-import { factCheck, hasBlocking, offerTermsFrom } from "@/modules/cv/factcheck";
+import { factCheck, hasBlocking, letterFactCheck, offerTermsFrom } from "@/modules/cv/factcheck";
 import { applySuggestion, checkSuggestion, guardSuggestions, revertSuggestion, type RawSuggestion } from "@/modules/cv/suggestions";
 import { toProfileContent } from "@/modules/profile/extract";
 import { CV_EXTRACTION, CV_TEXT } from "../helpers/fixtures";
@@ -199,5 +199,17 @@ describe("écart du recontrôle", () => {
     expect(improved.map((c) => c.label)).toEqual(["Python", "kafka "]);
     expect(worsened).toEqual([{ label: "Expérience", before: "confirmed", after: "partial", rationale: "Expérience partial" }]);
     expect(persistent.map((c) => c.label)).toEqual(["dbt"]);
+  });
+});
+
+describe("contrôle des faits de la lettre", () => {
+  it("accepte les chiffres et mots-clés prouvés, bloque les autres", () => {
+    const ok = "Depuis 2023 chez Lumio, j'ai industrialisé 30 pipelines Python et migré 4 To vers BigQuery : 5 ans d'expérience.";
+    expect(letterFactCheck(ok, profile, terms, TODAY)).toEqual([]);
+    expect(letterFactCheck("J'ai mené 12 projets dbt sur Kafka.", profile, terms, TODAY).map((i) => i.message)).toEqual([
+      "Lettre : le chiffre « 12 » n'apparaît pas dans le profil maître.",
+      "Lettre : « dbt » est mis en avant sans preuve dans le profil maître.",
+      "Lettre : « Kafka » est mis en avant sans preuve dans le profil maître.",
+    ]);
   });
 });
