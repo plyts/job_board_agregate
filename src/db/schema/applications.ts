@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, date, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, date, index, integer, jsonb, pgEnum, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { LetterProposal } from "@/modules/applications/letter";
 import { cvVersions } from "./cv";
 import { users } from "./identity";
@@ -139,4 +139,23 @@ export const applicationContacts = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("application_contacts_app_idx").on(t.applicationId)],
+);
+
+/**
+ * Réglage des colonnes du Kanban, par utilisateur : nom personnalisé et masquage. Les 12 étapes et leur ordre
+ * restent ceux du parcours (les règles d'envoi en dépendent) ; une ligne n'existe que pour une colonne modifiée.
+ */
+export const boardColumns = pgTable(
+  "board_columns",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: applicationStatus("status").notNull(),
+    label: text("label"),
+    hidden: boolean("hidden").notNull().default(false),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique("board_columns_user_status").on(t.userId, t.status)],
 );

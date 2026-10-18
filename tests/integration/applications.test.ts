@@ -5,19 +5,23 @@ import path from "node:path";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createPool } from "@/db/client";
-import { applicationDocuments, applicationEvents, applications, jobOffers } from "@/db/schema";
+import { applicationDocuments, applicationEvents, applications, boardColumns, jobOffers } from "@/db/schema";
 import { analyzeOffer } from "@/modules/analysis";
 import {
   addContact,
+  APPLICATION_STATUSES,
   checkCoverLetter,
   confirmSend,
   coverLetterFile,
   createApplication,
   deleteContact,
   getApplication,
+  getColumnSettings,
   listApplications,
   moveApplication,
   readSentDocument,
+  resetColumnSettings,
+  saveColumnSettings,
   saveCoverLetter,
   SEND_REQUIRED,
   setNextAction,
@@ -228,5 +232,25 @@ describe("candidatures", async () => {
     expect(app.application).toMatchObject({ nextAction: "Appeler le recruteur", nextActionAt: "2026-10-20", followUpDays: 10 });
     expect(app.events.at(-1)).toMatchObject({ type: "next_action_set" });
     expect(await checkpointCvDraft(pool, userId, offerId)).toBeNull();
+  });
+
+  it("enregistre le réglage des colonnes par compte : nom, masquage, retour aux colonnes par défaut", async () => {
+    const defaults = await getColumnSettings(db, userId);
+    expect(defaults).toHaveLength(12);
+    expect(defaults.every((c) => c.label === null && !c.hidden)).toBe(true);
+
+    const next = defaults.map((c) => (c.status === "qualified" ? { ...c, label: "À postuler" } : c.status === "followed_up" ? { ...c, hidden: true } : c));
+    await saveColumnSettings(db, userId, next);
+    expect(await db.select().from(boardColumns).where(eq(boardColumns.userId, userId))).toHaveLength(2);
+    const saved = await getColumnSettings(db, userId);
+    expect(saved.find((c) => c.status === "qualified")).toEqual({ status: "qualified", label: "À postuler", hidden: false });
+    expect(saved.find((c) => c.status === "followed_up")).toEqual({ status: "followed_up", label: null, hidden: true });
+    expect(saved.map((c) => c.status)).toEqual([...APPLICATION_STATUSES]);
+
+    const other = (await createUser(db, { email: "k@exemple.fr", displayName: "K", password: "un mot de passe solide" })).id;
+    expect((await getColumnSettings(db, other)).every((c) => c.label === null && !c.hidden)).toBe(true);
+
+    await resetColumnSettings(db, userId);
+    expect(await getColumnSettings(db, userId)).toEqual(defaults);
   });
 });

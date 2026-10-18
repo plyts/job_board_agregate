@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { moveApplicationAction } from "@/app/(app)/candidatures/actions";
 import { cn } from "@/lib/cn";
-import { APPLICATION_STATUSES, moveRefusal, type ApplicationStatus } from "@/modules/applications/rules";
+import { adjacentStatus, moveRefusal, type ApplicationStatus } from "@/modules/applications/rules";
 import { STATUS_META } from "./labels";
 
 export type CardView = {
@@ -21,6 +21,9 @@ export type CardView = {
   sent: boolean;
 };
 
+/** Colonne telle que réglée par l'utilisateur : nom affiché (personnalisé ou par défaut) et masquage. */
+export type ColumnView = { status: ApplicationStatus; label: string; hidden: boolean };
+
 function scoreTone(score: number | null) {
   if (score === null) return "text-muted-foreground";
   return score >= 75 ? "text-accent" : score >= 55 ? "text-signal" : "text-muted-foreground";
@@ -28,9 +31,10 @@ function scoreTone(score: number | null) {
 
 /**
  * Kanban des 12 étapes. Déplacement à la souris (glisser-déposer) ou au clavier (← → sur une carte sélectionnée) ;
- * chaque déplacement est vérifié par le serveur et journalisé.
+ * chaque déplacement est vérifié par le serveur et journalisé. Une colonne masquée n'est affichée que si elle
+ * contient des cartes ; le clavier et le sélecteur mobile sautent les colonnes non affichées.
  */
-export function KanbanBoard({ cards }: { cards: CardView[] }) {
+export function KanbanBoard({ cards, columns }: { cards: CardView[]; columns: ColumnView[] }) {
   const router = useRouter();
   const [overrides, setOverrides] = useState<Record<string, ApplicationStatus>>({});
   const [alert, setAlert] = useState<string | null>(null);
@@ -44,6 +48,8 @@ export function KanbanBoard({ cards }: { cards: CardView[] }) {
 
   // État optimiste : la colonne demandée l'emporte jusqu'à ce que le serveur la confirme ou la refuse.
   const view = cards.map((c) => ({ ...c, status: overrides[c.id] ?? c.status }));
+  const labelOf = (s: ApplicationStatus) => columns.find((c) => c.status === s)?.label ?? STATUS_META[s].label;
+  const shown = (s: ApplicationStatus) => !columns.find((c) => c.status === s)?.hidden || view.some((c) => c.status === s);
 
   useEffect(() => {
     if (!focusId) return;
@@ -76,7 +82,7 @@ export function KanbanBoard({ cards }: { cards: CardView[] }) {
           return next;
         });
       } else {
-        setAnnounce(`« ${card.title} » déplacée vers ${STATUS_META[to].label}.`);
+        setAnnounce(`« ${card.title} » déplacée vers ${labelOf(to)}.`);
       }
     });
     queues.current[card.id] = run;
@@ -85,13 +91,10 @@ export function KanbanBoard({ cards }: { cards: CardView[] }) {
 
   const onKey = (e: React.KeyboardEvent, card: CardView) => {
     if (e.target !== e.currentTarget) return;
-    const i = APPLICATION_STATUSES.indexOf(card.status);
-    if (e.key === "ArrowRight" && i < APPLICATION_STATUSES.length - 1) {
+    const to = e.key === "ArrowRight" ? adjacentStatus(card.status, 1, shown) : e.key === "ArrowLeft" ? adjacentStatus(card.status, -1, shown) : null;
+    if (to) {
       e.preventDefault();
-      move(card, APPLICATION_STATUSES[i + 1]!);
-    } else if (e.key === "ArrowLeft" && i > 0) {
-      e.preventDefault();
-      move(card, APPLICATION_STATUSES[i - 1]!);
+      move(card, to);
     } else if (e.key === "Enter") {
       router.push(`/candidatures/${card.id}`);
     }
@@ -111,15 +114,15 @@ export function KanbanBoard({ cards }: { cards: CardView[] }) {
         {announce}
       </p>
       <div ref={board} className="flex flex-col gap-3 md:flex-row md:items-start md:overflow-x-auto md:pb-3">
-        {APPLICATION_STATUSES.map((status, ci) => {
+        {columns.map(({ status, label, hidden }, ci) => {
           const list = view.filter((c) => c.status === status);
-          const meta = STATUS_META[status];
+          if (hidden && list.length === 0) return null;
           // Colonne vide repliée en bande verticale (toujours zone de dépôt) : les 12 étapes tiennent à l'écran.
           const collapsed = list.length === 0 && dragOver !== status;
           return (
             <section
               key={status}
-              aria-label={meta.label}
+              aria-label={label}
               onDragOver={(e) => {
                 e.preventDefault();
                 setDragOver(status);
@@ -140,7 +143,8 @@ export function KanbanBoard({ cards }: { cards: CardView[] }) {
             >
               <div className={cn("flex items-center gap-2 px-1", !collapsed && "pb-1", collapsed && "md:flex-col md:px-0")}>
                 <span className="font-mono text-[11px] text-muted-foreground">{String(ci + 1).padStart(2, "0")}</span>
-                <h2 className={cn("flex-1 text-sm font-semibold", collapsed && "font-medium whitespace-nowrap text-muted-foreground md:[writing-mode:vertical-rl]")}>{meta.label}</h2>
+                <h2 className={cn("flex-1 text-sm font-semibold", collapsed && "font-medium whitespace-nowrap text-muted-foreground md:[writing-mode:vertical-rl]")}>{label}</h2>
+                {hidden ? <span className="text-[11px] text-muted-foreground">masquée</span> : null}
                 <span className="font-mono text-xs text-muted-foreground">{list.length}</span>
               </div>
               <ul className={cn("flex flex-col gap-2", list.length === 0 && "hidden")}>
@@ -151,7 +155,7 @@ export function KanbanBoard({ cards }: { cards: CardView[] }) {
                     tabIndex={0}
                     draggable
                     aria-describedby="kanban-aide"
-                    aria-label={`${c.title}${c.company ? `, ${c.company}` : ""} — ${meta.label}`}
+                    aria-label={`${c.title}${c.company ? `, ${c.company}` : ""} — ${label}`}
                     onDragStart={(e) => {
                       e.dataTransfer.setData("text/plain", c.id);
                       e.dataTransfer.effectAllowed = "move";
@@ -173,11 +177,13 @@ export function KanbanBoard({ cards }: { cards: CardView[] }) {
                         onChange={(e) => move(c, e.target.value as ApplicationStatus)}
                         className="min-h-10 flex-1 rounded-md border border-border bg-panel px-2 text-sm text-foreground"
                       >
-                        {APPLICATION_STATUSES.map((s) => (
-                          <option key={s} value={s}>
-                            {STATUS_META[s].label}
-                          </option>
-                        ))}
+                        {columns
+                          .filter((o) => o.status === c.status || shown(o.status))
+                          .map((o) => (
+                            <option key={o.status} value={o.status}>
+                              {o.label}
+                            </option>
+                          ))}
                       </select>
                     </label>
                     {c.nextAction ? (

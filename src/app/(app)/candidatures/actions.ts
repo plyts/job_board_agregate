@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getDb, getPool } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
 import { getApplicationsDeps, getLetterDeps } from "@/lib/applications-deps";
+import { STATUS_META } from "@/components/applications/labels";
 import {
   acceptLetterProposal,
   addContact,
@@ -17,6 +18,9 @@ import {
   discardLetterProposal,
   moveApplication,
   requestLetterDraft,
+  resetColumnSettings,
+  saveColumnSettings,
+  validateColumns,
   saveCoverLetter,
   saveNotes,
   setNextAction,
@@ -121,6 +125,28 @@ export async function saveCoverLetterAction(applicationId: string, _prev: Applic
   const text = formData.get("coverLetter");
   if (!Id.safeParse(applicationId).success || typeof text !== "string" || text.length > 8000) return { error: "Lettre invalide (8 000 caractères maximum)." };
   if (!(await saveCoverLetter(getDb(), user.id, applicationId, text))) return { error: "Candidature introuvable." };
+  refresh();
+  return { ok: true };
+}
+
+/** Colonnes du Kanban : nom affiché et masquage, pour les 12 étapes. */
+export async function saveBoardColumnsAction(_prev: ApplicationActionState, formData: FormData): Promise<ApplicationActionState> {
+  const user = await requireUser();
+  const defaults = Object.fromEntries(APPLICATION_STATUSES.map((s) => [s, STATUS_META[s].label])) as Record<(typeof APPLICATION_STATUSES)[number], string>;
+  const input = APPLICATION_STATUSES.map((status) => {
+    const label = formData.get(`label:${status}`);
+    return { status, label: typeof label === "string" ? label : null, hidden: formData.get(`shown:${status}`) === null };
+  });
+  const checked = validateColumns(input, defaults);
+  if (!checked.ok) return { error: checked.error };
+  await saveColumnSettings(getDb(), user.id, checked.columns);
+  refresh();
+  return { ok: true };
+}
+
+export async function resetBoardColumnsAction(): Promise<ApplicationActionState> {
+  const user = await requireUser();
+  await resetColumnSettings(getDb(), user.id);
   refresh();
   return { ok: true };
 }

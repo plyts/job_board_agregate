@@ -3,7 +3,8 @@ import { ScrollArea } from "@/components/ui/ScrollArea";
 import Link from "next/link";
 import { CalendarView } from "@/components/applications/CalendarView";
 import { CompanyView } from "@/components/applications/CompanyView";
-import { KanbanBoard, type CardView } from "@/components/applications/KanbanBoard";
+import { BoardColumnsForm } from "@/components/applications/BoardColumnsForm";
+import { KanbanBoard, type CardView, type ColumnView } from "@/components/applications/KanbanBoard";
 import { STATUS_META } from "@/components/applications/labels";
 import { ButtonLink } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -12,7 +13,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
 import { cn } from "@/lib/cn";
-import { APPLICATION_STATUSES, CHANNELS, CLOSED, companyOverview, isOverdue, listApplications, localDate, type ApplicationRow, type Channel } from "@/modules/applications";
+import { APPLICATION_STATUSES, CHANNELS, CLOSED, companyOverview, getColumnSettings, isOverdue, listApplications, localDate, type ApplicationRow, type Channel } from "@/modules/applications";
 
 export const metadata: Metadata = { title: "Candidatures" };
 
@@ -39,7 +40,9 @@ export default async function ApplicationsPage(props: PageProps<"/candidatures">
   const user = await requireUser();
   const raw = await props.searchParams;
   const params: Params = Object.fromEntries(Object.entries(raw).filter(([, v]) => typeof v === "string")) as Params;
-  const all = await listApplications(getDb(), user.id);
+  const [all, settings] = await Promise.all([listApplications(getDb(), user.id), getColumnSettings(getDb(), user.id)]);
+  const columns: ColumnView[] = settings.map((c) => ({ status: c.status, label: c.label ?? STATUS_META[c.status].label, hidden: c.hidden }));
+  const labelOf = new Map(columns.map((c) => [c.status, c.label]));
   const today = localDate();
   const q = params.q?.trim().toLowerCase() ?? "";
   const rows = all.filter((a) => {
@@ -174,7 +177,7 @@ export default async function ApplicationsPage(props: PageProps<"/candidatures">
                         </td>
                         <td className="px-4 py-3">
                           <StatusBadge tone={meta.tone}>
-                            {meta.glyph} {meta.label}
+                            {meta.glyph} {labelOf.get(a.status) ?? meta.label}
                           </StatusBadge>
                         </td>
                         <td className="px-4 py-3 font-mono tabular-nums">{a.matchScore ?? "—"}</td>
@@ -192,7 +195,15 @@ export default async function ApplicationsPage(props: PageProps<"/candidatures">
               </table>
             </ScrollArea>
           ) : (
-            <KanbanBoard cards={cards} />
+            <>
+              <KanbanBoard cards={cards} columns={columns} />
+              <details className="rounded-xl border border-border bg-muted/40 p-3">
+                <summary className="cursor-pointer text-sm font-semibold">Personnaliser les colonnes</summary>
+                <div className="pt-3">
+                  <BoardColumnsForm settings={settings} />
+                </div>
+              </details>
+            </>
           )}
           <p className="text-[13px] text-muted-foreground">
             Une même entreprise peut avoir plusieurs candidatures ; une même offre n&apos;a qu&apos;une candidature active. « Envoyée » n&apos;est atteinte que par la confirmation d&apos;envoi, sur la fiche.

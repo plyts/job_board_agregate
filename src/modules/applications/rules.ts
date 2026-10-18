@@ -54,3 +54,17 @@ export function addDays(isoDate: string, days: number): string {
 export function isOverdue(nextActionAt: string | null, today: string): boolean {
   return nextActionAt !== null && nextActionAt < today;
 }
+
+/** Longueur maximale du nom personnalisé d'une colonne du Kanban. */
+export const COLUMN_LABEL_MAX = 40;
+
+/**
+ * Étape voisine pour un déplacement au clavier, en sautant les colonnes non affichées (masquées et vides).
+ * Renvoie null en bout de parcours.
+ */
+export function adjacentStatus(from: ApplicationStatus, direction: 1 | -1, shown: (s: ApplicationStatus) => boolean): ApplicationStatus | null {
+  for (let i = APPLICATION_STATUSES.indexOf(from) + direction; i >= 0 && i < APPLICATION_STATUSES.length; i += direction) {
+    if (shown(APPLICATION_STATUSES[i]!)) return APPLICATION_STATUSES[i]!;
+  }
+  return null;
+}

@@ -16,6 +16,11 @@ export const E2E_USER = { email: "e2e@jobpilot.test", displayName: "Compte e2e",
 /** Compte sans profil, pour le parcours de saisie du profil maître. */
 export const E2E_PROFILE_USER = { email: "e2e-profil@jobpilot.test", displayName: "Compte profil", password: "motdepasse-e2e-solide" };
 
+/** Compte du scénario « colonnes du Kanban » (un par projet) : son réglage ne touche pas le tableau des autres scénarios. */
+export function boardUser(project: string) {
+  return { email: `e2e-colonnes-${project}@jobpilot.test`, displayName: "Compte colonnes", password: "motdepasse-e2e-solide" };
+}
+
 /** Comptes supprimés par le scénario « Mon compte » (un par projet Playwright). */
 export function deletableUser(project: string) {
   return { email: `e2e-suppression-${project}@jobpilot.test`, displayName: "Compte jetable", password: "motdepasse-e2e-solide" };

@@ -141,6 +141,13 @@
       "when": 1792360764944,
       "tag": "0019_letter-draft",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792361320083,
+      "tag": "0020_board-columns",
+      "breakpoints": true
     }
   ]
 }

@@ -55,6 +55,9 @@ test("écrans du parcours critique : aucune violation WCAG 2.2 AA détectée", a
     await page.goto(`/candidatures${vue}`);
     found.push(...(await audit(page, `candidatures ${vue || "kanban"}`)));
   }
+  await page.goto("/candidatures");
+  await page.getByText("Personnaliser les colonnes").click();
+  found.push(...(await audit(page, "réglage des colonnes")));
 
   await page.goto("/profil");
   found.push(...(await audit(page, "profil maître")));

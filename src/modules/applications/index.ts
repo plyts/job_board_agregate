@@ -1,4 +1,5 @@
 export * from "./rules";
+export { getColumnSettings, resetColumnSettings, saveColumnSettings, validateColumns, type ColumnSetting } from "./board";
 export { guardLetter, letterText, type LetterParagraph, type LetterProposal } from "./letter";
 export {
   acceptLetterProposal,

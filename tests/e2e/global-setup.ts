@@ -13,7 +13,8 @@ import { computeMatch, getCvCheck, requestMatch } from "../../src/modules/matchi
 import { LlmRouter } from "../../src/modules/platform/llm/router";
 import { saveDraft, startDraft, validateDraft } from "../../src/modules/profile";
 import { toProfileContent } from "../../src/modules/profile/extract";
-import { analyzedOfferTitle, applicationOfferTitle, deletableUser, E2E_JUDGEMENT, E2E_PROFILE_USER, E2E_PROJECTS, E2E_USER } from "./fixtures";
+import { createApplication } from "../../src/modules/applications";
+import { analyzedOfferTitle, applicationOfferTitle, boardUser, deletableUser, E2E_JUDGEMENT, E2E_PROFILE_USER, E2E_PROJECTS, E2E_USER } from "./fixtures";
 
 /** Prépare la base e2e : migrations, compte de test et une offre déjà analysée (faux client IA, aucun appel payant). */
 export default async function globalSetup() {
@@ -25,7 +26,8 @@ export default async function globalSetup() {
     await runMigrations(db);
     // Comptes recréés à chaque exécution : état de départ identique (la suppression emporte offres, profil et journal).
     const disposable = E2E_PROJECTS.map(deletableUser);
-    for (const account of [E2E_USER, E2E_PROFILE_USER, ...disposable]) {
+    const boards = E2E_PROJECTS.map(boardUser);
+    for (const account of [E2E_USER, E2E_PROFILE_USER, ...disposable, ...boards]) {
       const previous = await findUserByEmail(db, account.email);
       if (previous) await db.delete(users).where(eq(users.id, previous.id));
       // Les échecs volontaires des scénarios précédents ne doivent pas verrouiller le compte.
@@ -34,6 +36,17 @@ export default async function globalSetup() {
     const user = await createUser(db, E2E_USER);
     await createUser(db, E2E_PROFILE_USER);
     for (const account of disposable) await createUser(db, account);
+    // Une candidature sur une offre non analysée (colonne « À analyser ») par compte « colonnes ».
+    for (const account of boards) {
+      const owner = await createUser(db, account);
+      const offer = await importOffer({ db, pool, storage: new LocalFsStorage("/tmp/jobpilot-e2e-unused"), enqueueAnalysis: async () => {} }, owner.id, {
+        kind: "text",
+        text: `${OFFER_TEXT}\nColonnes.`,
+      });
+      if (!offer.ok) throw new Error(`Préparation e2e : ${offer.message}`);
+      const created = await createApplication(db, pool, owner.id, offer.offerId);
+      if (!created.ok) throw new Error(`Préparation e2e : ${created.message}`);
+    }
 
     // Profil maître validé, construit depuis le CV de référence.
     const { content } = toProfileContent(CV_EXTRACTION, CV_TEXT, { email: null, phone: null });

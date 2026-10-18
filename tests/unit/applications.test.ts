@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { addDays, ALREADY_SENT, initialStatus, isOverdue, localDate, moveRefusal, SEND_REQUIRED } from "@/modules/applications/rules";
+import { validateColumns } from "@/modules/applications/board";
+import {
+  addDays,
+  adjacentStatus,
+  ALREADY_SENT,
+  APPLICATION_STATUSES,
+  initialStatus,
+  isOverdue,
+  localDate,
+  moveRefusal,
+  SEND_REQUIRED,
+  type ApplicationStatus,
+} from "@/modules/applications/rules";
 import { guardLetter, letterText } from "@/modules/applications/letter";
 import { sniffDocument } from "@/modules/applications/service";
 import { toProfileContent } from "@/modules/profile/extract";
@@ -64,5 +76,31 @@ describe("proposition de lettre", () => {
     expect(letterText({ paragraphs, dropped, promptVersion: "v", llmCallId: "c", createdAt: "" })).toBe(
       "Votre plateforme de données m'intéresse.\n\nChez Lumio, 30 pipelines Python/SQL orchestrés par Airflow.",
     );
+  });
+});
+
+describe("colonnes du Kanban", () => {
+  const defaults = Object.fromEntries(APPLICATION_STATUSES.map((s) => [s, `Étape ${s}`])) as Record<ApplicationStatus, string>;
+  const all = (patch: Partial<Record<ApplicationStatus, { label?: string | null; hidden?: boolean }>> = {}) =>
+    APPLICATION_STATUSES.map((status) => ({ status, label: patch[status]?.label ?? null, hidden: patch[status]?.hidden ?? false }));
+
+  it("normalise les noms, refuse les doublons, un réglage incomplet et un tableau sans colonne affichée", () => {
+    const ok = validateColumns(all({ qualified: { label: "  À  postuler " }, ready: { label: "Étape ready" }, abandoned: { hidden: true } }), defaults);
+    expect(ok.ok && ok.columns.find((c) => c.status === "qualified")).toEqual({ status: "qualified", label: "À postuler", hidden: false });
+    // Un nom identique au nom par défaut n'est pas une personnalisation.
+    expect(ok.ok && ok.columns.find((c) => c.status === "ready")?.label).toBeNull();
+    expect(validateColumns(all({ qualified: { label: "étape SENT" } }), defaults)).toEqual({ ok: false, error: "Deux colonnes portent le même nom : « Étape sent »." });
+    expect(validateColumns(all({ qualified: { label: "x".repeat(41) } }), defaults)).toMatchObject({ ok: false });
+    expect(validateColumns(all().slice(1), defaults)).toMatchObject({ ok: false, error: "Réglage incomplet : les 12 étapes sont attendues." });
+    expect(validateColumns(all(Object.fromEntries(APPLICATION_STATUSES.map((s) => [s, { hidden: true }]))), defaults)).toMatchObject({ ok: false, error: "Garde au moins une colonne affichée." });
+  });
+
+  it("le clavier saute les colonnes non affichées et s'arrête au bout du parcours", () => {
+    const hidden = new Set<ApplicationStatus>(["qualified", "cv_to_adapt"]);
+    const shown = (s: ApplicationStatus) => !hidden.has(s);
+    expect(adjacentStatus("to_analyze", 1, shown)).toBe("ready");
+    expect(adjacentStatus("ready", -1, shown)).toBe("to_analyze");
+    expect(adjacentStatus("new_offer", -1, shown)).toBeNull();
+    expect(adjacentStatus("abandoned", 1, shown)).toBeNull();
   });
 });

@@ -7,6 +7,7 @@ import {
   applicationDocuments,
   applicationEvents,
   applications,
+  boardColumns,
   companies,
   cvSuggestions,
   cvVersions,
@@ -75,10 +76,11 @@ export async function exportAccount(deps: AccountDeps, userId: string, now = new
     // Journal des appels IA : métadonnées seulement (aucun contenu n'y est jamais stocké).
     llmCalls: await db.select().from(llmCalls).where(by(llmCalls)),
     aiConsents: await db.select().from(aiConsents).where(by(aiConsents)),
+    boardColumns: await db.select().from(boardColumns).where(by(boardColumns)),
   };
   const files: Record<string, Uint8Array> = {
     "LISEZ-MOI.txt": strToU8(
-      "Export JobPilot : donnees.json contient toutes tes données (offres, analyses, profil maître et ses versions, CV personnalisés, matchings, candidatures, événements, contacts, journal des appels IA sans contenu, consentements IA datés). Le dossier fichiers/ contient les fichiers stockés (CV importés, offres en fichier, documents réellement envoyés).\n",
+      "Export JobPilot : donnees.json contient toutes tes données (offres, analyses, profil maître et ses versions, CV personnalisés, matchings, candidatures, événements, contacts, journal des appels IA sans contenu, consentements IA datés, réglage des colonnes du Kanban). Le dossier fichiers/ contient les fichiers stockés (CV importés, offres en fichier, documents réellement envoyés).\n",
     ),
     "donnees.json": strToU8(JSON.stringify(data, null, 2)),
   };
