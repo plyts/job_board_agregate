@@ -1,0 +1,41 @@
+{
+  "id": "05-ambiguous",
+  "text": "Ingénieur Data confirmé – Port Autonome Sud\nMarseille. Télétravail partiel selon la politique en vigueur.\nVous rejoindrez une équipe en pleine structuration. Une expérience dans le secteur public serait appréciée.\nCompétences : Python, outils d'orchestration, cloud.\nHabilitation de sécurité requise ou à obtenir.",
+  "expected": [
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "python"
+      ]
+    },
+    {
+      "kinds": [
+        "clearance"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "habilitation"
+      ]
+    },
+    {
+      "kinds": [
+        "location"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "marseille"
+      ]
+    }
+  ],
+  "notMentioned": [
+    "salary"
+  ],
+  "forbidden": [],
+  "expectUncertain": [
+    "remote"
+  ]
+}

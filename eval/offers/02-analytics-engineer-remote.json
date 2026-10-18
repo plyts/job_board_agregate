@@ -1,0 +1,74 @@
+{
+  "id": "02-analytics-engineer-remote",
+  "text": "Analytics Engineer (H/F) – Vélia\nFull remote possible depuis la France. CDI.\nVous modéliserez les données produit avec dbt et BigQuery et construirez les tableaux de bord de référence dans Looker.\nCe que nous attendons : 3 ans minimum sur un poste similaire, excellente maîtrise du SQL, rigueur et sens de la pédagogie.\nIdéalement : connaissance de Python, expérience en start-up.\nSalaire : 55 000 à 65 000 € brut annuel selon expérience.",
+  "expected": [
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "3"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "sql"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "dbt"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "preferred",
+      "keywords": [
+        "python"
+      ]
+    },
+    {
+      "kinds": [
+        "salary"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "55"
+      ]
+    },
+    {
+      "kinds": [
+        "remote"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "remote"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "cdi"
+      ]
+    }
+  ],
+  "notMentioned": [],
+  "forbidden": []
+}

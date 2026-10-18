@@ -65,7 +65,7 @@ async function recordDuplicate(db: Db, userId: string, offerId: string, source: 
   return { ok: true, offerId, duplicate: true };
 }
 
-async function upsertCompany(db: Db, userId: string, name: string): Promise<string | null> {
+export async function upsertCompany(db: Db, userId: string, name: string): Promise<string | null> {
   const normalizedName = normalizeCompanyName(name);
   if (!normalizedName) return null;
   await db.insert(companies).values({ userId, name: name.trim(), normalizedName }).onConflictDoNothing();

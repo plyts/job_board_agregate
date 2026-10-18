@@ -11,8 +11,9 @@ Dernière mise à jour : 18/10/2026.
 | T1 Identité | Compte propriétaire (`npm run user:create`), connexion, sessions en base (jeton haché), verrouillage après 5 échecs, déconnexion, contrôle optimiste `proxy.ts` + `requireUser()` | 5 tests d'intégration, 4 scénarios e2e |
 | T2 Plateforme | File pg-boss (politique `exclusive`, 3 reprises avec temporisation, expiration), mise en file transactionnelle, stockage local sans écrasement, client Claude à sortie validée par schéma avec repli serveur, journal `llm_calls`, budget IA journalier bloquant, worker (`npm run worker`) | 7 tests d'intégration, 8 tests unitaires |
 | T4 Offres | Import par URL (adresses internes refusées, robots.txt, domaines interdits), texte collé, PDF/TXT ; URL canonique et empreinte pour le dédoublonnage ; liste filtrable ; fiche offre | 28 tests unitaires, 12 tests d'intégration, 3 scénarios e2e |
+| T5 Analyse (code) | Schéma d'extraction v1 et prompt `offer-extract-v1` ; contrôle déterministe des citations (une citation introuvable déclasse l'exigence en « incertaine ») ; versions d'analyse ; corrections journalisées ; qualifier / écarter ; relance manuelle ; traitement `offer.analyze` dans le worker (reprises, budget, refus) ; balayage planifié des analyses bloquées ; fiche avec extrait source surligné | 9 + 2 tests unitaires, 10 tests d'intégration (dont import → worker → offre analysée), 4 scénarios e2e |
 
-Dernière exécution locale : `lint` ✓, `typecheck` ✓, `test` 68/68 ✓, `build` ✓, `test:e2e` 16/16 ✓ (bureau et mobile). CI GitHub : verte sur T1 et T2.
+Dernière exécution locale : `lint` ✓, `typecheck` ✓, `test` 89/89 ✓, `build` ✓, `test:e2e` 20/20 ✓ (bureau et mobile, deux exécutions consécutives). CI GitHub : verte sur T1, T2 ; T4 et T5 à confirmer.
 
 ## En cours
 
@@ -20,13 +21,13 @@ Rien.
 
 ## Pas encore fait
 
-- T5 Analyse structurée : les offres importées restent « En file » ; aucun traitement `offer.analyze` n'est encore branché dans le worker.
+- T5, mesure réelle : le jeu d'évaluation compte 6 offres annotées sur les 30 prévues, et n'a jamais été exécuté contre le modèle (aucune clé). Le critère « ≥ 90 % des exigences obligatoires retrouvées » n'est donc **pas encore vérifié**.
 - T3 Profil maître, T6 à T11.
 - Le tableau de bord affiche un état vide : aucune métrique n'est encore calculée.
 
 ## Aucun appel IA réel effectué
 
-Le client Claude est testé avec un faux client. Aucune clé n'est configurée dans cet environnement et aucun appel payant n'a été fait.
+Le client Claude est testé avec un faux client. Aucune clé n'est configurée dans cet environnement et aucun appel payant n'a été fait. Sans clé, le worker laisse les analyses en file (aucun échec artificiel) et la fiche offre l'indique.
 
 ## Problèmes connus
 
@@ -43,4 +44,6 @@ Le client Claude est testé avec un faux client. Aucune clé n'est configurée d
 
 ## Prochaine étape
 
-T5 — analyse structurée des offres : schéma d'extraction v1, prompt v1, vérification des citations, traitement `offer.analyze` dans le worker, affichage explicite / déduit / incertain, jeu d'évaluation de 30 offres fictives.
+1. Dès que la clé est disponible : `npm run eval:offers -- --yes` (6 appels, coût affiché à la fin), puis ajuster le prompt si le rappel est sous 90 %.
+2. T3 — profil maître (import du CV), après ta décision sur le consentement.
+3. En attendant ces deux points : compléter le jeu d'évaluation à 30 offres et compacter la navigation mobile.

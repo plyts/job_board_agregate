@@ -1,5 +1,11 @@
 import type { Page } from "@playwright/test";
 
+export const E2E_PROJECTS = ["desktop", "mobile"] as const;
+
+export function analyzedOfferTitle(project: string) {
+  return `Senior Data Engineer (${project})`;
+}
+
 export const E2E_USER = { email: "e2e@jobpilot.test", displayName: "Compte e2e", password: "motdepasse-e2e-solide" };
 
 export async function signIn(page: Page) {

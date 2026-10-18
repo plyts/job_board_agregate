@@ -1,17 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { OfferAnalysisView } from "@/components/offers/OfferAnalysisView";
 import { OFFER_SOURCE_LABELS, OFFER_STATUS_LABELS } from "@/components/offers/status";
+import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
+import { getCurrentAnalysis } from "@/modules/analysis";
 import { getOffer } from "@/modules/offers";
+import { decideOfferAction, retryAnalysisAction } from "./actions";
 
 export const metadata: Metadata = { title: "Offre" };
 
 const dateFmt = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" });
+const usd = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "USD", maximumFractionDigits: 3 });
 
 function Chip({ children }: { children: React.ReactNode }) {
   return <span className="rounded-full border border-border bg-panel px-2.5 py-0.5 font-mono text-xs text-muted-foreground">{children}</span>;
@@ -20,9 +25,12 @@ function Chip({ children }: { children: React.ReactNode }) {
 export default async function OfferPage(props: PageProps<"/offres/[id]">) {
   const user = await requireUser();
   const { id } = await props.params;
-  const offer = await getOffer(getDb(), user.id, id);
+  const db = getDb();
+  const offer = await getOffer(db, user.id, id);
   if (!offer) notFound();
+  const current = await getCurrentAnalysis(db, user.id, offer.id);
   const status = OFFER_STATUS_LABELS[offer.status];
+  const decided = offer.status === "analyzed" || offer.status === "qualified" || offer.status === "discarded";
 
   return (
     <>
@@ -33,7 +41,33 @@ export default async function OfferPage(props: PageProps<"/offres/[id]">) {
         <span aria-hidden="true">/</span>
         <span className="truncate">{offer.title}</span>
       </nav>
-      <PageHeader title={offer.company ? `${offer.title} · ${offer.company}` : offer.title}>
+      <PageHeader
+        title={offer.company ? `${offer.title} · ${offer.company}` : offer.title}
+        actions={
+          decided ? (
+            <>
+              {offer.status !== "discarded" ? (
+                <form action={decideOfferAction.bind(null, offer.id, "discard")}>
+                  <Button type="submit">Écarter l&apos;offre</Button>
+                </form>
+              ) : null}
+              {offer.status !== "qualified" ? (
+                <form action={decideOfferAction.bind(null, offer.id, "qualify")}>
+                  <Button type="submit" variant="primary">
+                    Qualifier l&apos;offre
+                  </Button>
+                </form>
+              ) : null}
+            </>
+          ) : offer.status === "failed" ? (
+            <form action={retryAnalysisAction.bind(null, offer.id)}>
+              <Button type="submit" variant="primary">
+                Relancer l&apos;analyse
+              </Button>
+            </form>
+          ) : null
+        }
+      >
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
           <Chip>{OFFER_SOURCE_LABELS[offer.source]}</Chip>
@@ -48,29 +82,57 @@ export default async function OfferPage(props: PageProps<"/offres/[id]">) {
         ) : null}
       </PageHeader>
 
-      <div className="flex flex-wrap items-start gap-5">
-        <Panel aria-labelledby="source-title" className="flex min-w-0 flex-[1_1_420px] flex-col gap-3">
-          <h2 id="source-title" className="text-base font-semibold">
-            Texte source
-          </h2>
-          <p className="rounded-md bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
-            Contenu importé traité comme donnée non fiable : il est analysé, jamais exécuté comme une instruction.
-          </p>
-          <div className="whitespace-pre-wrap break-words text-[15px] leading-relaxed">{offer.rawText}</div>
-        </Panel>
-        <Panel aria-labelledby="analysis-title" className="flex min-w-0 flex-[1_1_320px] flex-col gap-2">
-          <h2 id="analysis-title" className="text-base font-semibold">
-            Analyse structurée
-          </h2>
-          {offer.status === "queued" ? (
-            <p className="text-sm leading-6 text-muted-foreground">
-              L&apos;analyse est en file d&apos;attente. Elle démarre dès qu&apos;un worker est actif et qu&apos;une clé IA est configurée.
+      {current ? (
+        <OfferAnalysisView
+          rawText={offer.rawText}
+          notMentioned={current.analysis.notMentioned}
+          meta={[
+            `schéma v${current.analysis.schemaVersion}`,
+            current.analysis.promptVersion,
+            current.analysis.latencyMs ? `${Math.round(current.analysis.latencyMs / 1000)} s` : null,
+            current.analysis.costUsd !== null ? usd.format(current.analysis.costUsd) : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+          requirements={current.requirements.map((r) => ({
+            id: r.id,
+            kind: r.kind,
+            importance: r.importance,
+            label: r.label,
+            value: r.value,
+            provenance: r.provenance,
+            quote: r.quote,
+            quoteStart: r.quoteStart,
+            quoteEnd: r.quoteEnd,
+            rationale: r.rationale,
+            verificationNote: r.verificationNote,
+            correctedByUser: r.correctedByUser,
+          }))}
+        />
+      ) : (
+        <div className="flex flex-wrap items-start gap-5">
+          <Panel aria-labelledby="source-title" className="flex min-w-0 flex-[1_1_420px] flex-col gap-3">
+            <h2 id="source-title" className="text-base font-semibold">
+              Texte source
+            </h2>
+            <p className="rounded-md bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
+              Contenu importé traité comme donnée non fiable : il est analysé, jamais exécuté comme une instruction.
             </p>
-          ) : (
-            <p className="text-sm leading-6 text-muted-foreground">{offer.statusReason ?? status.label}</p>
-          )}
-        </Panel>
-      </div>
+            <div className="whitespace-pre-wrap break-words text-[15px] leading-relaxed">{offer.rawText}</div>
+          </Panel>
+          <Panel aria-labelledby="analysis-title" className="flex min-w-0 flex-[1_1_320px] flex-col gap-2">
+            <h2 id="analysis-title" className="text-base font-semibold">
+              Analyse structurée
+            </h2>
+            <p className="text-sm leading-6 text-muted-foreground">
+              {offer.statusReason ??
+                (offer.status === "analyzing"
+                  ? "Analyse en cours…"
+                  : "L'analyse est en file d'attente. Elle démarre dès qu'un worker est actif et qu'une clé IA est configurée.")}
+            </p>
+          </Panel>
+        </div>
+      )}
     </>
   );
 }

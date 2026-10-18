@@ -1,7 +1,7 @@
 import "server-only";
 import { getDb, getPool } from "@/db/client";
 import type { OfferDeps } from "@/modules/offers";
-import { getBoss, getStorage, transactionDb } from "@/modules/platform";
+import { analysisJobOptions, getBoss, getStorage, transactionDb } from "@/modules/platform";
 
 export function getOfferDeps(): OfferDeps {
   return {
@@ -10,7 +10,7 @@ export function getOfferDeps(): OfferDeps {
     storage: getStorage(),
     enqueueAnalysis: async (tx, job) => {
       const boss = await getBoss();
-      await boss.send("offer.analyze", job, { singletonKey: `offer:${job.offerId}`, db: transactionDb(tx.client) });
+      await boss.send("offer.analyze", job, { ...analysisJobOptions(job.offerId), db: transactionDb(tx.client) });
     },
   };
 }

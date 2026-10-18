@@ -1,0 +1,85 @@
+{
+  "id": "04-english-offer",
+  "text": "Machine Learning Engineer – Kerala Bio (Remote, EU)\n12-month fixed-term contract, starting ASAP.\nYou will deploy and monitor models in production on AWS (SageMaker) and build feature pipelines.\nRequirements: 4+ years of software engineering, strong Python, hands-on MLOps experience (MLflow or similar).\nNice to have: Kubernetes, a background in life sciences.\nFluent English required; French is a plus.",
+  "expected": [
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "4"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "python"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "mlops"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "preferred",
+      "keywords": [
+        "kubernetes"
+      ]
+    },
+    {
+      "kinds": [
+        "language"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "english"
+      ]
+    },
+    {
+      "kinds": [
+        "language"
+      ],
+      "importance": "preferred",
+      "keywords": [
+        "french"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "12"
+      ]
+    },
+    {
+      "kinds": [
+        "availability"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "asap"
+      ]
+    }
+  ],
+  "notMentioned": [
+    "salary"
+  ],
+  "forbidden": []
+}

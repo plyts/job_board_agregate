@@ -1,0 +1,97 @@
+{
+  "id": "01-data-engineer-lyon",
+  "text": "Senior Data Engineer — Nordwave (Lyon)\nNordwave construit la plateforme de données de ses clients industriels.\nMissions : concevoir et maintenir des pipelines batch et temps réel, industrialiser les traitements sous Airflow.\nProfil : au moins 5 ans d'expérience en ingénierie des données, maîtrise de Python et SQL, expérience significative de Spark (Databricks) et de GCP (BigQuery).\ndbt et Kafka sont un plus. Anglais courant indispensable.\nCDI, poste basé à Lyon, 3 jours par semaine sur site. Rémunération selon profil.",
+  "expected": [
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "5"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "python"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "spark"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "bigquery"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "preferred",
+      "keywords": [
+        "dbt"
+      ]
+    },
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "preferred",
+      "keywords": [
+        "kafka"
+      ]
+    },
+    {
+      "kinds": [
+        "language"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "anglais"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "cdi"
+      ]
+    },
+    {
+      "kinds": [
+        "remote",
+        "location"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "3"
+      ]
+    }
+  ],
+  "notMentioned": [
+    "salary"
+  ],
+  "forbidden": []
+}

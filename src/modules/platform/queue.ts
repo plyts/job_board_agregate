@@ -17,6 +17,8 @@ export const QUEUES = {
     retryDelayMax: 600,
     expireInSeconds: 300,
   },
+  /** Balayage planifié : remet en file les analyses en attente (budget atteint, worker arrêté). */
+  "offer.resume": { policy: "exclusive", retryLimit: 0, expireInSeconds: 120 },
 } satisfies Record<string, Omit<Queue, "name">>;
 
 export type QueueName = keyof typeof QUEUES;
@@ -38,6 +40,12 @@ export async function ensureQueues(boss: PgBoss): Promise<void> {
 }
 
 /** Adaptateur pg-boss sur la connexion d'une transaction en cours. */
+export const SCHEDULES: { queue: QueueName; cron: string }[] = [{ queue: "offer.resume", cron: "*/30 * * * *" }];
+
+export function analysisJobOptions(offerId: string) {
+  return { singletonKey: `offer:${offerId}` };
+}
+
 export function transactionDb(client: PoolClient) {
   return { executeSql: (text: string, values?: unknown[]) => client.query(text, values as unknown[]) };
 }

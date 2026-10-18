@@ -16,6 +16,10 @@ Priorité aux comportements critiques, pas à la couverture.
 
 ## Jeu d'évaluation
 
+**État réel** : `eval/offers/` contient 6 offres fictives annotées (dont une injection de consignes, une offre en anglais, une offre ambiguë, une offre minimale). `npm run eval:offers -- --yes` les soumet au modèle et affiche rappel, accord sur l'importance, citations invalides, contenus interdits et coût. Un test unitaire vérifie que chaque mot-clé attendu figure bien dans l'annonce (annotation vérifiable). Jamais exécuté contre le modèle à ce jour.
+
+Cible :
+
 `eval/fixtures/` : 30 offres fictives ou anonymisées (dont 5 piégées : injection, salaire absent, exigences ambiguës, offre en anglais, doublon reformulé) et 3 profils fictifs, annotés à la main (exigences attendues, catégorie attendue par couple).
 
 Indicateurs suivis à chaque changement de prompt, de schéma ou de modèle : précision et rappel par type d'exigence, taux de citations invalides, accord de catégorie de matching, coût et latence moyens. Un changement n'est retenu que s'il n'est pas pire sur ces indicateurs.

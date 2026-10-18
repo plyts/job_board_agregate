@@ -19,7 +19,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "user:create": "tsx scripts/create-user.ts",
-    "worker": "JOBPILOT_PROCESS=worker tsx scripts/worker.ts"
+    "worker": "JOBPILOT_PROCESS=worker tsx scripts/worker.ts",
+    "eval:offers": "tsx eval/run-offers.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",

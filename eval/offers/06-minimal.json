@@ -1,0 +1,39 @@
+{
+  "id": "06-minimal",
+  "text": "BI Engineer – Lumen Retail – Bordeaux\nPower BI, SQL Server. 2 ans d'expérience. CDD 6 mois.",
+  "expected": [
+    {
+      "kinds": [
+        "hard_skill",
+        "tech"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "power",
+        "bi"
+      ]
+    },
+    {
+      "kinds": [
+        "years"
+      ],
+      "importance": "mandatory",
+      "keywords": [
+        "2"
+      ]
+    },
+    {
+      "kinds": [
+        "contract"
+      ],
+      "importance": "condition",
+      "keywords": [
+        "cdd"
+      ]
+    }
+  ],
+  "notMentioned": [
+    "salary"
+  ],
+  "forbidden": []
+}
