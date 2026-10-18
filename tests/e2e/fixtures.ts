@@ -7,6 +7,11 @@ export function analyzedOfferTitle(project: string) {
   return `Senior Data Engineer (${project})`;
 }
 
+/** Offre dont le CV est déjà finalisé, pour le parcours de candidature. */
+export function applicationOfferTitle(project: string) {
+  return `Lead Data Engineer (${project})`;
+}
+
 export const E2E_USER = { email: "e2e@jobpilot.test", displayName: "Compte e2e", password: "motdepasse-e2e-solide" };
 /** Compte sans profil, pour le parcours de saisie du profil maître. */
 export const E2E_PROFILE_USER = { email: "e2e-profil@jobpilot.test", displayName: "Compte profil", password: "motdepasse-e2e-solide" };

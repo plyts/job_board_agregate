@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ActionButton } from "@/components/cv/ActionButton";
+import { ActionButton } from "@/components/ui/ActionButton";
 import { CvWorkspace } from "@/components/cv/CvWorkspace";
 import { VERSION_STATUS_META } from "@/components/cv/labels";
 import { CATEGORY_META } from "@/components/matching/labels";

@@ -8,12 +8,12 @@ import { importOffer } from "../../src/modules/offers";
 import { FakeLlmClient } from "../../src/modules/platform/llm/fake";
 import { LocalFsStorage } from "../../src/modules/platform/storage";
 import { CV_EXTRACTION, CV_TEXT, EXTRACTION, OFFER_TEXT } from "../helpers/fixtures";
-import { generateSuggestions, requestSuggestions, startCvDraft } from "../../src/modules/cv";
-import { computeMatch, requestMatch } from "../../src/modules/matching";
+import { finalizeCvVersion, generateSuggestions, recheckCv, requestSuggestions, startCvDraft } from "../../src/modules/cv";
+import { computeMatch, getCvCheck, requestMatch } from "../../src/modules/matching";
 import { LlmRouter } from "../../src/modules/platform/llm/router";
 import { saveDraft, startDraft, validateDraft } from "../../src/modules/profile";
 import { toProfileContent } from "../../src/modules/profile/extract";
-import { analyzedOfferTitle, E2E_JUDGEMENT, E2E_PROFILE_USER, E2E_PROJECTS, E2E_USER } from "./fixtures";
+import { analyzedOfferTitle, applicationOfferTitle, E2E_JUDGEMENT, E2E_PROFILE_USER, E2E_PROJECTS, E2E_USER } from "./fixtures";
 
 /** Prépare la base e2e : migrations, compte de test et une offre déjà analysée (faux client IA, aucun appel payant). */
 export default async function globalSetup() {
@@ -74,6 +74,26 @@ export default async function globalSetup() {
       });
       const suggestRouter = new LlmRouter([{ client: suggester, policy: { allowsPersonalData: true, requestsPerMinute: null, requestsPerDay: null } }]);
       await generateSuggestions({ db, llm: suggestRouter, budgetUsd: 1000 }, { draftId: cv.draft.id, userId: user.id });
+
+      // Seconde offre, CV déjà recontrôlé et finalisé : point de départ du parcours de candidature.
+      const second = await importOffer(
+        { db, pool, storage: new LocalFsStorage("/tmp/jobpilot-e2e-unused"), enqueueAnalysis: async () => {} },
+        user.id,
+        { kind: "text", text: `${OFFER_TEXT}\nCandidature ${project}.` },
+      );
+      if (!second.ok) throw new Error(`Préparation e2e : ${second.message}`);
+      const extractor = new FakeLlmClient("modele-e2e", undefined, "local").respondWith({ ...EXTRACTION, title: applicationOfferTitle(project) });
+      await analyzeOffer({ db, pool, llm: extractor, budgetUsd: 1000 }, { offerId: second.offerId, userId: user.id });
+      const today = new Date("2026-10-18T12:00:00Z");
+      const reference = await requestMatch({ db, pool, enqueueMatch: async () => {} }, user.id, second.offerId);
+      if (!reference.ok) throw new Error(`Préparation e2e : ${reference.message}`);
+      await computeMatch({ db, pool, llm: null, today }, { matchId: reference.matchId, userId: user.id });
+      await startCvDraft(db, user.id, second.offerId);
+      const rechecked = await recheckCv({ db, pool, enqueueMatch: async () => {} }, user.id, second.offerId);
+      if (!rechecked.ok) throw new Error(`Préparation e2e : ${rechecked.error}`);
+      await computeMatch({ db, pool, llm: null, today }, { matchId: (await getCvCheck(db, user.id, rechecked.versionId))!.match.id, userId: user.id });
+      const finalized = await finalizeCvVersion(db, user.id, rechecked.versionId, today);
+      if (!finalized.ok) throw new Error(`Préparation e2e : ${finalized.problems.join(" ; ")}`);
     }
   } finally {
     await pool.end();

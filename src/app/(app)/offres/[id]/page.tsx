@@ -10,10 +10,14 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
 import { RequestMatchButton } from "@/components/matching/RequestMatchButton";
+import { STATUS_META } from "@/components/applications/labels";
+import { ActionButton } from "@/components/ui/ActionButton";
 import { getCurrentAnalysis } from "@/modules/analysis";
+import { getActiveApplication } from "@/modules/applications";
 import { getCurrentMatch } from "@/modules/matching";
 import { getOffer } from "@/modules/offers";
 import { decideOfferAction, retryAnalysisAction } from "./actions";
+import { createApplicationAction } from "../../candidatures/actions";
 
 export const metadata: Metadata = { title: "Offre" };
 
@@ -30,7 +34,11 @@ export default async function OfferPage(props: PageProps<"/offres/[id]">) {
   const db = getDb();
   const offer = await getOffer(db, user.id, id);
   if (!offer) notFound();
-  const [current, match] = await Promise.all([getCurrentAnalysis(db, user.id, offer.id), getCurrentMatch(db, user.id, offer.id)]);
+  const [current, match, application] = await Promise.all([
+    getCurrentAnalysis(db, user.id, offer.id),
+    getCurrentMatch(db, user.id, offer.id),
+    getActiveApplication(db, user.id, offer.id),
+  ]);
   const status = OFFER_STATUS_LABELS[offer.status];
   const decided = offer.status === "analyzed" || offer.status === "qualified" || offer.status === "discarded";
 
@@ -59,6 +67,11 @@ export default async function OfferPage(props: PageProps<"/offres/[id]">) {
                 <RequestMatchButton offerId={offer.id} />
               )}
               <ButtonLink href={`/offres/${offer.id}/cv`}>CV personnalisé</ButtonLink>
+              {application ? (
+                <ButtonLink href={`/candidatures/${application.id}`}>Candidature · {STATUS_META[application.status].label}</ButtonLink>
+              ) : (
+                <ActionButton action={createApplicationAction.bind(null, offer.id)} label="Suivre la candidature" pendingLabel="Création…" />
+              )}
               {offer.status !== "discarded" ? (
                 <form action={decideOfferAction.bind(null, offer.id, "discard")}>
                   <Button type="submit">Écarter l&apos;offre</Button>

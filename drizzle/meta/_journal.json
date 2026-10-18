@@ -78,6 +78,20 @@
       "when": 1792341498952,
       "tag": "0010_cv-immutability",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792341956992,
+      "tag": "0011_applications",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792341958200,
+      "tag": "0012_applications-immutability",
+      "breakpoints": true
     }
   ]
 }

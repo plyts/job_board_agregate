@@ -10,7 +10,7 @@ Toutes les routes exigent une session ; toute entrée est validée par un schém
 
 ## Routes HTTP (MVP)
 
-Implémentation actuelle : l'éditeur de CV passe par des Server Actions (`src/app/(app)/offres/[id]/cv/actions.ts`), validées par Zod et filtrées par la session : créer le brouillon, l'enregistrer (`revision` attendue, refus si périmée), demander des suggestions, accepter / modifier / refuser / annuler une suggestion (refus avec message si le contrôle des faits échoue), restaurer une version, repartir du profil courant, recontrôler (fige une version puis lance son matching), finaliser (refus avec la liste des écarts). Les routes ci-dessous restent le contrat cible pour un client externe.
+Implémentation actuelle : les candidatures (`src/app/(app)/candidatures/actions.ts` : créer depuis une offre, déplacer, confirmer l'envoi avec date, canal et fichier, prochaine action, notes) et l'éditeur de CV passent par des Server Actions (`src/app/(app)/offres/[id]/cv/actions.ts`), validées par Zod et filtrées par la session : créer le brouillon, l'enregistrer (`revision` attendue, refus si périmée), demander des suggestions, accepter / modifier / refuser / annuler une suggestion (refus avec message si le contrôle des faits échoue), restaurer une version, repartir du profil courant, recontrôler (fige une version puis lance son matching), finaliser (refus avec la liste des écarts). Les routes ci-dessous restent le contrat cible pour un client externe.
 
 | Méthode | Route | Rôle | Réponse |
 |---|---|---|---|
@@ -28,6 +28,7 @@ Implémentation actuelle : l'éditeur de CV passe par des Server Actions (`src/a
 | POST | `/api/matches` | `{ offerId, cvVersionId?, weights? }` | `202 { matchId }` ou `200` si en cache |
 | GET | `/api/matches/:id` | Score, facteurs, items | `200 MatchAnalysis` |
 | GET | `/api/cv/:versionId/export?format=pdf\|docx` | Télécharge une version enregistrée ou finalisée (jamais un brouillon), en pièce jointe | `200` fichier / `400 INVALID_FORMAT` / `401` / `404` (brouillon, version d'un autre compte) |
+| GET | `/api/applications/documents/:documentId` | Fichier réellement envoyé, en pièce jointe, après vérification de son SHA-256 | `200` fichier / `401` / `404` / `409 INTEGRITY_CHECK_FAILED` (fichier altéré ou absent) |
 | POST | `/api/applications` | `{ offerId, cvVersionId? }` | `201` / `409 APPLICATION_EXISTS` |
 | PATCH | `/api/applications/:id` | Statut, prochaine action, notes | `200` (crée un événement) |
 | POST | `/api/applications/:id/send-confirmation` | `{ sentAt, channel, documentId }` — fige le document | `200` |

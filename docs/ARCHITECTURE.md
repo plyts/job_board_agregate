@@ -54,7 +54,7 @@ Chaque module expose une API TypeScript (`src/modules/<nom>/index.ts`) ; les aut
 | `analysis` | Extraction structurée des offres | `job_requirements`, `offer_analyses` |
 | `matching` | Évaluation par exigence, score | `match_analyses`, `match_items` |
 | `cv` | Versions personnalisées, suggestions, diff, export, recontrôle | `cv_versions`, `cv_suggestions` |
-| `applications` | Candidatures, documents envoyés, événements, relances, Kanban | `applications`, `application_documents`, `application_events`, `reminders`, `board_columns` |
+| `applications` | Candidatures, confirmation d'envoi, document envoyé figé, événements, relances (prochaine action datée), Kanban | `applications`, `application_documents`, `application_events` |
 | `metrics` | Agrégats du tableau de bord à partir des événements | vues SQL |
 | `connectors` | Interface commune des sources (V2) | `job_sources`, `sync_runs` |
 | `platform` | LLM, stockage, file, logs, budget | `llm_calls`, `pgboss.*` |
