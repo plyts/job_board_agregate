@@ -38,7 +38,7 @@ Monolithe modulaire en TypeScript : une seule base de code, deux processus.
 | IA | Claude ; autre fournisseur ; modèle local | **Claude via SDK officiel**, sorties structurées validées par Zod, derrière une interface `LlmClient` | Dépendance fournisseur | Coût ou qualité insuffisants mesurés sur le jeu d'évaluation |
 | Recherche | Postgres full-text ; pgvector ; moteur dédié | **Postgres full-text + trigrammes** au MVP | Pas de sémantique | Mesure sur jeu d'évaluation montrant un gain de rappel (V2 : pgvector) |
 | Export CV | react-pdf ; HTML → PDF via Chromium ; DOCX | **Gabarit HTML → PDF (Chromium) + DOCX (lib `docx`)** | Chromium dans le worker | — |
-| Auth | Maison ; bibliothèque éprouvée | **Bibliothèque éprouvée** (Auth.js ou Better Auth, choix en T1 après vérification de compatibilité Next 16), sessions en base, cookie `HttpOnly; Secure; SameSite=Lax` | — | — |
+| Auth | Auth.js, Better Auth ; sessions en base | **Sessions en base, sans inscription publique** (ADR 0005), cookie `HttpOnly; Secure; SameSite=Lax`, scrypt | Pas d'OAuth ni de MFA au MVP | Passage au multi-utilisateur ou exposition publique |
 
 ## Modules
 
