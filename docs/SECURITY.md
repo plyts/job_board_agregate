@@ -21,5 +21,5 @@
 - Minimisation : coordonnées retirées du texte envoyé au modèle (extraction, matching, suggestions de CV) et du profil transmis à l'éditeur dans le navigateur ; elles ne figurent que dans les exports PDF/DOCX, servis en pièce jointe, `Cache-Control: private, no-store`, à leur seul propriétaire ; logs sans contenu personnel.
 - Fournisseurs IA : chaque requête est classée `public` (annonce) ou `personal` (CV, candidature). Une donnée personnelle n'est envoyée qu'à un fournisseur explicitement autorisé (`<P>_ALLOW_PERSONAL_DATA=true`) ; refus par défaut, sauf modèle local. Plusieurs offres gratuites réutilisent les contenus (ADR 0006).
 - Hébergement et fournisseur IA en UE ou avec garanties contractuelles, à confirmer.
-- Export complet (JSON + fichiers) et suppression complète du compte disponibles.
-- Sauvegardes chiffrées quotidiennes, rétention 30 jours, restauration testée.
+- Export complet (ZIP : JSON et fichiers, sans secret) et suppression définitive du compte (confirmée par e-mail et mot de passe), dans « Réglages › Mon compte ».
+- Sauvegardes : `scripts/backup.sh` (base et fichiers, AES-256, rétention 30 jours, à planifier chaque jour) ; restauration vérifiée par `npm run backup:check` (lignes et fichiers identiques). Voir `docs/OPERATIONS.md`.

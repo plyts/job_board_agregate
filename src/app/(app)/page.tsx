@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { STATUS_META } from "@/components/applications/labels";
 import { OFFER_SOURCE_LABELS } from "@/components/offers/status";
 import { ButtonLink } from "@/components/ui/Button";
@@ -203,7 +204,7 @@ export default async function DashboardPage(props: PageProps<"/">) {
 
         <Panel aria-label="Par source" className="flex flex-col gap-2">
           <h2 className="text-lg font-semibold tracking-tight">Par source</h2>
-          <div className="overflow-x-auto">
+          <ScrollArea label="Tableau des sources">
             <table className="w-full min-w-[26rem] text-sm">
               <thead>
                 <tr className="text-left text-[12px] text-muted-foreground">
@@ -242,7 +243,7 @@ export default async function DashboardPage(props: PageProps<"/">) {
                 </tr>
               </tbody>
             </table>
-          </div>
+          </ScrollArea>
         </Panel>
       </div>
     </>

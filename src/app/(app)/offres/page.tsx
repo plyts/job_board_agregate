@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import Link from "next/link";
 import { ImportPanel } from "@/components/offers/ImportPanel";
 import { OFFER_SOURCE_LABELS, OFFER_STATUS_LABELS } from "@/components/offers/status";
@@ -64,7 +65,7 @@ export default async function OffersPage(props: PageProps<"/offres">) {
             {filtered ? <p>Modifie ou réinitialise les filtres.</p> : <p>Importe ta première offre par URL, texte collé ou fichier.</p>}
           </EmptyState>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-border bg-panel">
+          <ScrollArea label="Liste des offres" className="rounded-xl border border-border bg-panel">
             <table className="w-full min-w-[720px] border-collapse text-sm">
               <thead>
                 <tr className="bg-background text-left text-xs text-muted-foreground">
@@ -95,7 +96,7 @@ export default async function OffersPage(props: PageProps<"/offres">) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollArea>
         )}
       </section>
     </>

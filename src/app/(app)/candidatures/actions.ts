@@ -22,7 +22,8 @@ import { logger } from "@/modules/platform";
 
 const Id = z.uuid();
 
-export type ApplicationActionState = { error?: string; ok?: boolean };
+/** `values` : saisie rendue au formulaire après une erreur (React réinitialise les champs non contrôlés). */
+export type ApplicationActionState = { error?: string; ok?: boolean; values?: Record<string, string> };
 
 export async function createApplicationAction(offerId: string): Promise<ApplicationActionState> {
   const user = await requireUser();
@@ -139,9 +140,13 @@ const Contact = z.object({
 
 export async function addContactAction(applicationId: string, _prev: ApplicationActionState, formData: FormData): Promise<ApplicationActionState> {
   const user = await requireUser();
-  const parsed = Contact.safeParse(Object.fromEntries(formData));
+  const raw = Object.fromEntries(formData);
+  const parsed = Contact.safeParse(raw);
   if (!Id.safeParse(applicationId).success) return { error: "Candidature inconnue." };
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message === "Nom requis" ? "Le nom du contact est requis." : "E-mail ou lien invalide." };
+  if (!parsed.success) {
+    const values = Object.fromEntries(Object.entries(raw).filter((e): e is [string, string] => typeof e[1] === "string"));
+    return { error: parsed.error.issues[0]?.message === "Nom requis" ? "Le nom du contact est requis." : "E-mail ou lien invalide.", values };
+  }
   if (!(await addContact(getDb(), user.id, applicationId, parsed.data))) return { error: "Candidature introuvable." };
   refresh();
   return { ok: true };

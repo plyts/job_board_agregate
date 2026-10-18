@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActionButton } from "@/components/ui/ActionButton";
@@ -193,7 +194,7 @@ export default async function CvPage(props: PageProps<"/offres/[id]/cv">) {
         {versions.length === 0 ? (
           <p className="text-sm text-muted-foreground">Aucune version enregistrée. « Recontrôler cette version » fige le brouillon en version immuable.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <ScrollArea label="Tableau des enregistrements du CV">
             <table className="w-full min-w-[36rem] text-sm">
               <thead>
                 <tr className="text-left text-[12px] text-muted-foreground">
@@ -238,7 +239,7 @@ export default async function CvPage(props: PageProps<"/offres/[id]/cv">) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollArea>
         )}
       </Panel>
 

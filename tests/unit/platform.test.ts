@@ -57,3 +57,12 @@ describe("stockage local", async () => {
     expect((await storage.get("u1/doc.pdf")).toString()).toBe("v1");
   });
 });
+
+describe("cadence du worker", () => {
+  it("relève toutes les 0,5 s avec 2 tâches en parallèle par défaut, et refuse les valeurs hors bornes", async () => {
+    const { workerPace } = await import("@/worker");
+    expect(workerPace({})).toEqual({ pollingIntervalSeconds: 0.5, localConcurrency: 2 });
+    expect(workerPace({ WORKER_POLL_SECONDS: "2", WORKER_CONCURRENCY: "4" })).toEqual({ pollingIntervalSeconds: 2, localConcurrency: 4 });
+    expect(workerPace({ WORKER_POLL_SECONDS: "0.1", WORKER_CONCURRENCY: "99" })).toEqual({ pollingIntervalSeconds: 0.5, localConcurrency: 2 });
+  });
+});

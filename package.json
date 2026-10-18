@@ -21,7 +21,10 @@
     "user:create": "tsx scripts/create-user.ts",
     "worker": "JOBPILOT_PROCESS=worker tsx scripts/worker.ts",
     "eval:offers": "tsx eval/run-offers.ts",
-    "llm:check": "tsx scripts/llm-check.ts"
+    "llm:check": "tsx scripts/llm-check.ts",
+    "test:load": "tsx scripts/load-test.ts",
+    "backup": "scripts/backup.sh",
+    "backup:check": "scripts/backup-check.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
@@ -29,6 +32,7 @@
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "docx": "^9.12.0",
     "drizzle-orm": "^0.45.4",
+    "fflate": "^0.8.3",
     "ipaddr.js": "^2.5.0",
     "mammoth": "^1.13.0",
     "next": "^16.4.2",
@@ -46,6 +50,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "1.56",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^22.20.5",

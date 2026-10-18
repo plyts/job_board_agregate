@@ -17,11 +17,26 @@ const SuggestJob = z.object({ draftId: z.uuid(), userId: z.uuid() });
 
 export type WorkerDeps = { db: Db; pool: Pool; llm: LlmClient | LlmRouter | null; budgetUsd?: number };
 
+/**
+ * Cadence des files : relève toutes les 0,5 s (2 s par défaut chez pg-boss, qui limitait le débit à environ
+ * 30 analyses par minute) et 2 tâches en parallèle par file. Les limites des fournisseurs restent appliquées
+ * par le routeur ; le budget journalier peut être dépassé d'au plus un appel par tâche en parallèle.
+ */
+export function workerPace(env: Record<string, string | undefined> = process.env) {
+  const poll = Number(env.WORKER_POLL_SECONDS ?? 0.5);
+  const concurrency = Number(env.WORKER_CONCURRENCY ?? 2);
+  return {
+    pollingIntervalSeconds: Number.isFinite(poll) && poll >= 0.5 ? poll : 0.5,
+    localConcurrency: Number.isInteger(concurrency) && concurrency >= 1 && concurrency <= 16 ? concurrency : 2,
+  };
+}
+
 /** Branche les traitements sur les files. Sans client IA, les analyses restent en file (aucun échec artificiel). */
 export async function startWorker(boss: PgBoss, deps: WorkerDeps): Promise<void> {
+  const pace = workerPace();
   if (deps.llm) {
     const llm = deps.llm;
-    await boss.work("offer.analyze", { batchSize: 1, includeMetadata: true }, async ([job]) => {
+    await boss.work("offer.analyze", { batchSize: 1, includeMetadata: true, ...pace }, async ([job]) => {
       if (!job) return;
       const data = AnalyzeJob.safeParse(job.data);
       if (!data.success) {
@@ -34,7 +49,7 @@ export async function startWorker(boss: PgBoss, deps: WorkerDeps): Promise<void>
       });
       logger.info({ jobId: job.id, offerId: data.data.offerId, outcome: outcome.kind, ms: Date.now() - started }, "analyse d'offre");
     });
-    await boss.work("profile.extract", { batchSize: 1, includeMetadata: true }, async ([job]) => {
+    await boss.work("profile.extract", { batchSize: 1, includeMetadata: true, ...pace }, async ([job]) => {
       if (!job) return;
       const data = ExtractJob.safeParse(job.data);
       if (!data.success) {
@@ -49,7 +64,7 @@ export async function startWorker(boss: PgBoss, deps: WorkerDeps): Promise<void>
   }
 
   // Le matching fonctionne aussi sans fournisseur IA, en mode « règles seules » clairement signalé.
-  await boss.work("match.compute", { batchSize: 1, includeMetadata: true }, async ([job]) => {
+  await boss.work("match.compute", { batchSize: 1, includeMetadata: true, ...pace }, async ([job]) => {
     if (!job) return;
     const data = MatchJob.safeParse(job.data);
     if (!data.success) {
@@ -63,7 +78,7 @@ export async function startWorker(boss: PgBoss, deps: WorkerDeps): Promise<void>
   });
 
   // Sans fournisseur, la demande échoue avec un message clair : l'éditeur reste utilisable à la main.
-  await boss.work("cv.suggest", { batchSize: 1, includeMetadata: true }, async ([job]) => {
+  await boss.work("cv.suggest", { batchSize: 1, includeMetadata: true, ...pace }, async ([job]) => {
     if (!job) return;
     const data = SuggestJob.safeParse(job.data);
     if (!data.success) {

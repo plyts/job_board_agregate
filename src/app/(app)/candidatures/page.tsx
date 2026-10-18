@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import Link from "next/link";
 import { CalendarView } from "@/components/applications/CalendarView";
 import { CompanyView } from "@/components/applications/CompanyView";
@@ -55,13 +56,13 @@ export default async function ApplicationsPage(props: PageProps<"/candidatures">
   const chip = (key: "retard" | "score" | "sansaction", label: string) => (
     <Link
       href={href(params, { [key]: params[key] ? undefined : "1" })}
-      aria-pressed={Boolean(params[key])}
       className={cn(
         "inline-flex min-h-10 items-center rounded-full border px-3 text-[13px] no-underline",
         params[key] ? "border-foreground bg-foreground text-background" : "border-border bg-panel text-foreground",
       )}
     >
       {label}
+      {params[key] ? <span className="sr-only"> (filtre actif, cliquer pour le retirer)</span> : null}
     </Link>
   );
 
@@ -140,7 +141,7 @@ export default async function ApplicationsPage(props: PageProps<"/candidatures">
           ) : params.vue === "entreprise" ? (
             <CompanyView groups={(await companyOverview(getDb(), user.id)).filter((g) => !q || (g.company ?? "").toLowerCase().includes(q) || g.offers.some((o) => o.title.toLowerCase().includes(q)))} />
           ) : table ? (
-            <div className="overflow-x-auto rounded-xl border border-border bg-panel">
+            <ScrollArea label="Tableau des candidatures" className="rounded-xl border border-border bg-panel">
               <table className="w-full min-w-[48rem] text-sm">
                 <thead>
                   <tr className="text-left text-[12px] text-muted-foreground">
@@ -189,7 +190,7 @@ export default async function ApplicationsPage(props: PageProps<"/candidatures">
                   })}
                 </tbody>
               </table>
-            </div>
+            </ScrollArea>
           ) : (
             <KanbanBoard cards={cards} />
           )}

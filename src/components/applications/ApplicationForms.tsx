@@ -88,6 +88,11 @@ export function SendForm({
 }) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState(versions[0]?.id ?? "upload");
+  // Champs contrôlés : après une erreur, React réinitialise le formulaire ; date et canal doivent rester ceux choisis.
+  const [sentAt, setSentAt] = useState(today);
+  const [channel, setChannel] = useState("career_site");
+  // Cochée par défaut dès que la lettre est jointe possible (elle peut le devenir après l'ouverture du formulaire).
+  const [attach, setAttach] = useState(true);
   const [state, action, pending] = useActionState<ApplicationActionState, FormData>(confirmSendAction.bind(null, id), {});
   if (!open) {
     return (
@@ -104,11 +109,11 @@ export function SendForm({
       <div className="grid gap-3 md:grid-cols-2">
         <Label>
           Date d&apos;envoi
-          <Input type="date" name="sentAt" defaultValue={today} max={today} required />
+          <Input type="date" name="sentAt" value={sentAt} onChange={(e) => setSentAt(e.target.value)} max={today} required />
         </Label>
         <Label>
           Canal
-          <select name="channel" className={select} defaultValue="career_site">
+          <select name="channel" className={select} value={channel} onChange={(e) => setChannel(e.target.value)}>
             {Object.entries(channels).map(([k, v]) => (
               <option key={k} value={k}>
                 {v}
@@ -139,7 +144,14 @@ export function SendForm({
       </fieldset>
       {letter !== "none" ? (
         <label className="flex min-h-10 items-center gap-2 text-sm">
-          <input type="checkbox" name="attachLetter" disabled={letter === "blocked"} defaultChecked={letter === "ok"} className="size-4 accent-[var(--accent)]" />
+          <input
+            type="checkbox"
+            name="attachLetter"
+            disabled={letter === "blocked"}
+            checked={attach && letter === "ok"}
+            onChange={(e) => setAttach(e.target.checked)}
+            className="size-4 accent-[var(--accent)]"
+          />
           Joindre la lettre de motivation (PDF)
           {letter === "blocked" ? <span className="text-[13px] text-danger">: bloquée par le contrôle des faits</span> : null}
         </label>
@@ -243,27 +255,27 @@ export function ContactForm({ id }: { id: string }) {
     <form action={action} key={state.ok ? "reset" : "form"} className="flex flex-col gap-2.5">
       <Label>
         Nom
-        <Input name="name" required maxLength={120} />
+        <Input defaultValue={state.values?.name ?? ""} name="name" required maxLength={120} />
       </Label>
       <Label>
         Rôle
-        <Input name="role" maxLength={120} placeholder="Recruteur, manager…" />
+        <Input defaultValue={state.values?.role ?? ""} name="role" maxLength={120} placeholder="Recruteur, manager…" />
       </Label>
       <Label>
         E-mail
-        <Input name="email" type="email" maxLength={200} />
+        <Input defaultValue={state.values?.email ?? ""} name="email" type="email" maxLength={200} />
       </Label>
       <Label>
         Téléphone
-        <Input name="phone" maxLength={40} />
+        <Input defaultValue={state.values?.phone ?? ""} name="phone" maxLength={40} />
       </Label>
       <Label>
         Lien (profil, page)
-        <Input name="url" type="url" maxLength={300} placeholder="https://" />
+        <Input defaultValue={state.values?.url ?? ""} name="url" type="url" maxLength={300} placeholder="https://" />
       </Label>
       <Label>
         Note
-        <Input name="note" maxLength={500} />
+        <Input defaultValue={state.values?.note ?? ""} name="note" maxLength={500} />
       </Label>
       <Button type="submit" disabled={pending} className="self-start">
         {pending ? "Ajout…" : "Ajouter le contact"}

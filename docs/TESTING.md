@@ -14,6 +14,25 @@ Priorité aux comportements critiques, pas à la couverture.
 | Charge | Script | 100 offres importées d'un coup : toutes analysées, aucun doublon d'analyse, coût et durée mesurés |
 | Accessibilité | axe-core dans Playwright | Écrans du parcours critique |
 
+## Accessibilité
+
+`tests/e2e/accessibility.spec.ts` passe axe-core (WCAG 2.0, 2.1 et 2.2 niveaux A et AA) sur la connexion et tous les écrans du parcours :
+- tableau de bord ;
+- offres, analyse, matching ;
+- éditeur de CV, recontrôle ;
+- candidatures (Kanban, tableau, calendrier, par entreprise), fiche candidature ;
+- profil maître, fournisseurs IA.
+
+Le passage est fait sur ordinateur et sur mobile. Défauts trouvés et corrigés :
+- `aria-pressed` placé sur des liens ;
+- zones à défilement horizontal inaccessibles au clavier.
+
+axe ne couvre pas tout : la relecture au lecteur d'écran reste à faire.
+
+## Charge et sauvegardes
+
+Voir `docs/OPERATIONS.md` : test de charge de 100 offres (script et mesures), vérification sauvegarde-restauration.
+
 ## Worker pendant les tests e2e
 
 Le worker ne tourne pas pendant Playwright. Les données nécessaires sont préparées dans `tests/e2e/global-setup.ts` avec un faux client IA rattaché au fournisseur « local » (aucun coût) ; les matchings mis en file par un scénario (recontrôle d'un CV) sont traités par `tests/e2e/worker.ts`, avec le même jugement simulé.

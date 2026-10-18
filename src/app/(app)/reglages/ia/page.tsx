@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 import { Panel } from "@/components/ui/Panel";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -53,7 +54,7 @@ export default async function AiProvidersPage() {
         </p>
       ) : null}
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-panel">
+      <ScrollArea label="Fournisseurs configurés" className="rounded-xl border border-border bg-panel">
         <table className="w-full min-w-[860px] border-collapse text-sm">
           <thead>
             <tr className="bg-background text-left text-xs text-muted-foreground">
@@ -111,7 +112,7 @@ export default async function AiProvidersPage() {
             })}
           </tbody>
         </table>
-      </div>
+      </ScrollArea>
       <p className="text-[13px] leading-5 text-muted-foreground">
         Les limites par défaut sont indicatives (relevées le 18/10/2026 sur des sources secondaires) : vérifie-les sur la console de chaque fournisseur et ajuste <code className="font-mono">*_RPM</code> et <code className="font-mono">*_RPD</code>. Les annonces sont des données publiques ; le CV et les candidatures ne partent que vers un fournisseur dont la ligne indique « Autorisées ».
       </p>
