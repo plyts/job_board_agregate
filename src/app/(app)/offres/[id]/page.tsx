@@ -9,7 +9,9 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
+import { RequestMatchButton } from "@/components/matching/RequestMatchButton";
 import { getCurrentAnalysis } from "@/modules/analysis";
+import { getCurrentMatch } from "@/modules/matching";
 import { getOffer } from "@/modules/offers";
 import { decideOfferAction, retryAnalysisAction } from "./actions";
 
@@ -28,7 +30,7 @@ export default async function OfferPage(props: PageProps<"/offres/[id]">) {
   const db = getDb();
   const offer = await getOffer(db, user.id, id);
   if (!offer) notFound();
-  const current = await getCurrentAnalysis(db, user.id, offer.id);
+  const [current, match] = await Promise.all([getCurrentAnalysis(db, user.id, offer.id), getCurrentMatch(db, user.id, offer.id)]);
   const status = OFFER_STATUS_LABELS[offer.status];
   const decided = offer.status === "analyzed" || offer.status === "qualified" || offer.status === "discarded";
 
@@ -46,6 +48,16 @@ export default async function OfferPage(props: PageProps<"/offres/[id]">) {
         actions={
           decided ? (
             <>
+              {match ? (
+                <Link
+                  href={`/offres/${offer.id}/matching`}
+                  className="inline-flex min-h-11 items-center rounded-lg border border-accent bg-accent-soft px-4 text-sm font-semibold text-foreground no-underline"
+                >
+                  {match.match.status === "done" && match.match.score !== null ? `Matching ${match.match.score}/100` : "Voir le matching"}
+                </Link>
+              ) : (
+                <RequestMatchButton offerId={offer.id} />
+              )}
               {offer.status !== "discarded" ? (
                 <form action={decideOfferAction.bind(null, offer.id, "discard")}>
                   <Button type="submit">Écarter l&apos;offre</Button>
@@ -53,9 +65,7 @@ export default async function OfferPage(props: PageProps<"/offres/[id]">) {
               ) : null}
               {offer.status !== "qualified" ? (
                 <form action={decideOfferAction.bind(null, offer.id, "qualify")}>
-                  <Button type="submit" variant="primary">
-                    Qualifier l&apos;offre
-                  </Button>
+                  <Button type="submit">Qualifier l&apos;offre</Button>
                 </form>
               ) : null}
             </>

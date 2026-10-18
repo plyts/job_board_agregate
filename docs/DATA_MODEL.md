@@ -40,8 +40,8 @@ llm_calls (journal de tous les appels IA)
 | `companies` | `name`, `normalized_name` | Unique `(user_id, normalized_name)` ; suffixes juridiques ignorés (SAS, SARL…) |
 | `job_requirements` | `offer_id`, `analysis_id`, `kind` (mission, hard_skill, soft_skill, tech, years, seniority, degree, cert, language, contract, location, remote, availability, salary, clearance), `importance` (mandatory, preferred, condition), `value jsonb`, `provenance` (explicit, inferred, uncertain), `quote`, `quote_start`, `quote_end` | `provenance = explicit` ⇒ `quote` présente dans le texte source |
 | `offer_analyses` | `offer_id`, `schema_version`, `prompt_version`, `model`, `llm_call_id`, `status` | Une seule analyse `current` par offre |
-| `match_analyses` | `offer_id`, `profile_version_id`, `cv_version_id null`, `weights jsonb`, `score numeric`, `factor_scores jsonb` | Unique `(offer_id, coalesce(cv_version_id, profile_version_id), weights_hash)` |
-| `match_items` | `match_id`, `requirement_id`, `category` (confirmed, partial, to_confirm, not_demonstrated, potential_incompatibility, not_applicable), `evidence jsonb` [{element_id, quote}], `rationale`, `action` | `category ∈ {confirmed, partial}` ⇒ `evidence` non vide |
+| `match_analyses` | `offer_id`, `offer_analysis_id`, `profile_version_id`, `cv_version_id null`, `state` (current, superseded), `status` (pending, done, failed), `mode` (model, rules_only), `weights jsonb`, `score`, `factors jsonb`, `llm_call_id` | Un seul matching courant par offre ; changer les poids recalcule le score sans appel IA |
+| `match_items` | `match_id`, `requirement_id`, `kind` et `importance` figés, `category` (confirmed, partial, to_confirm, not_demonstrated, potential_incompatibility, not_applicable), `evidence jsonb` [{id, label, text}], `rationale`, `action`, `source` (rule, model, guard) | `category ∈ {confirmed, partial}` ⇒ `evidence` non vide (garde-fou serveur) |
 | `cv_versions` | `base_profile_version_id`, `target_offer_id`, `parent_id`, `version int`, `content jsonb`, `status` (draft, finalized), `content_hash` | `finalized` ⇒ immuable |
 | `cv_suggestions` | `cv_version_id`, `kind` (rephrase, reorder, emphasize), `path`, `before`, `after`, `source_refs uuid[]`, `state` (pending, accepted, rejected, edited) | `source_refs` non vide (contrainte `CHECK`) |
 | `applications` | `offer_id`, `company_id`, `status`, `cv_version_id`, `match_score`, `next_action`, `next_action_at`, `sent_at null`, `channel` | Unique partielle `(user_id, offer_id) where status not in ('abandoned','rejected')` ; `status = sent` ⇒ `sent_at` et un document `sent` existent |
@@ -61,7 +61,7 @@ llm_calls (journal de tous les appels IA)
 
 ## État réel des tables
 
-Créées à ce jour (migrations `drizzle/0000` à `0006`) : `users`, `sessions`, `login_attempts`, `llm_calls`, `companies`, `job_offers`, `offer_imports`, `offer_analyses`, `job_requirements`, `requirement_corrections`, `profile_versions`. Les autres tables de ce document restent à créer avec leur module.
+Créées à ce jour (migrations `drizzle/0000` à `0008`) : `users`, `sessions`, `login_attempts`, `llm_calls`, `companies`, `job_offers`, `offer_imports`, `offer_analyses`, `job_requirements`, `requirement_corrections`, `profile_versions`, `match_analyses`, `match_items`. Les autres tables de ce document restent à créer avec leur module.
 
 ## Migrations
 
