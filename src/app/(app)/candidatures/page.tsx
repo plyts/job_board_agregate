@@ -14,6 +14,7 @@ import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
 import { cn } from "@/lib/cn";
 import { APPLICATION_STATUSES, CHANNELS, CLOSED, companyOverview, getColumnSettings, isOverdue, listApplications, localDate, type ApplicationRow, type Channel } from "@/modules/applications";
+import { Glyph } from "@/components/ui/Glyph";
 
 export const metadata: Metadata = { title: "Candidatures" };
 
@@ -177,7 +178,7 @@ export default async function ApplicationsPage(props: PageProps<"/candidatures">
                         </td>
                         <td className="px-4 py-3">
                           <StatusBadge tone={meta.tone}>
-                            {meta.glyph} {labelOf.get(a.status) ?? meta.label}
+                            <Glyph>{meta.glyph}</Glyph> {labelOf.get(a.status) ?? meta.label}
                           </StatusBadge>
                         </td>
                         <td className="px-4 py-3 font-mono tabular-nums">{a.matchScore ?? "—"}</td>
@@ -186,7 +187,19 @@ export default async function ApplicationsPage(props: PageProps<"/candidatures">
                           {a.channel ? <div className="text-[12px] text-muted-foreground">{CHANNELS[a.channel as Channel] ?? a.channel}</div> : null}
                         </td>
                         <td className={cn("px-4 py-3", late && "font-semibold text-danger")}>
-                          {a.nextAction ? `${late ? "! " : ""}${a.nextAction}${a.nextActionAt ? ` · ${fmt(a.nextActionAt)}` : ""}` : "—"}
+                          {a.nextAction ? (
+                            <>
+                              {late ? (
+                                <>
+                                  <Glyph>! </Glyph>
+                                  <span className="sr-only">En retard : </span>
+                                </>
+                              ) : null}
+                              {`${a.nextAction}${a.nextActionAt ? ` · ${fmt(a.nextActionAt)}` : ""}`}
+                            </>
+                          ) : (
+                            "—"
+                          )}
                         </td>
                       </tr>
                     );

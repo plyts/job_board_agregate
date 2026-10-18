@@ -11,6 +11,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { CvContent } from "@/modules/cv/content";
 import { evidenceElements, type ProfileContent } from "@/modules/profile/content";
 import { SUGGESTION_KIND_LABELS, SUGGESTION_STATE_META } from "./labels";
+import { Glyph } from "@/components/ui/Glyph";
 
 export type SuggestionView = {
   id: string;
@@ -83,7 +84,7 @@ function Card({ s, cv, names, locked }: { s: SuggestionView; cv: CvContent; name
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">{SUGGESTION_KIND_LABELS[s.kind]}</span>
         <StatusBadge tone={meta.tone}>
-          {meta.glyph} {meta.label}
+          <Glyph>{meta.glyph}</Glyph> {meta.label}
         </StatusBadge>
       </div>
       {s.targetId && s.kind !== "summary" ? <p className="text-[13px] text-muted-foreground">{names.get(s.targetId) ?? "Élément du profil"}</p> : null}
@@ -184,16 +185,21 @@ export function SuggestionsPanel({ offerId, cv, profile, suggestions, status, re
           configurer un modèle local (recommandé) ou donner ton consentement à un fournisseur dans <Link href="/reglages/ia">les réglages IA</Link>.
         </p>
       ) : null}
-      {working ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          <MatchPoller />
-          {reason ?? "Le modèle prépare des suggestions à partir de ton profil maître…"}
-        </p>
-      ) : reason ? (
-        <p role="status" className={status === "failed" ? "text-sm text-danger" : "text-[13px] text-muted-foreground"}>
-          {reason}
-        </p>
-      ) : null}
+      {/* Une seule région d'état, toujours présente : l'arrivée des suggestions est annoncée au lecteur d'écran. */}
+      <p role="status" className={working ? "text-sm text-muted-foreground" : status === "failed" ? "text-sm text-danger" : "text-[13px] text-muted-foreground"}>
+        {working ? (
+          <>
+            <MatchPoller />
+            {reason ?? "Le modèle prépare des suggestions à partir de ton profil maître…"}
+          </>
+        ) : reason ? (
+          reason
+        ) : status === "done" ? (
+          <span className="sr-only">
+            {suggestions.length} suggestion{suggestions.length > 1 ? "s" : ""} à examiner.
+          </span>
+        ) : null}
+      </p>
       {locked ? <p className="text-[13px] text-signal">Enregistre tes modifications pour décider des suggestions.</p> : null}
       {error ? (
         <p role="alert" className="text-sm text-danger">

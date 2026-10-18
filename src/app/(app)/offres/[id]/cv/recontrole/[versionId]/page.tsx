@@ -18,6 +18,7 @@ import { getCurrentMatch, getCvCheck, type MatchView } from "@/modules/matching"
 import { computeScore } from "@/modules/matching/score";
 import { getOffer } from "@/modules/offers";
 import { getVersion } from "@/modules/profile";
+import { Glyph } from "@/components/ui/Glyph";
 
 export const metadata: Metadata = { title: "Recontrôle du CV" };
 
@@ -32,7 +33,7 @@ function Category({ c }: { c: CategoryChange["after"] | null }) {
   const meta = CATEGORY_META[c];
   return (
     <StatusBadge tone={meta.tone}>
-      {meta.glyph} {meta.label}
+      <Glyph>{meta.glyph}</Glyph> {meta.label}
     </StatusBadge>
   );
 }
@@ -121,12 +122,16 @@ export default async function RecheckPage(props: PageProps<"/offres/[id]/cv/reco
         }
       />
 
+      {/* Région persistante : la fin du recontrôle est annoncée quand la page se rafraîchit d'elle-même. */}
+      <p role="status" className="sr-only">
+        {done ? `Recontrôle terminé : score ${after ?? "inconnu"} sur 100.` : ""}
+      </p>
       {!check ? (
         <p role="status" className="rounded-lg border border-signal bg-panel px-4 py-3 text-sm">
           Aucun recontrôle pour cette version. Relance-le depuis l&apos;éditeur (« Recontrôler cette version »).
         </p>
       ) : check.match.status === "pending" ? (
-        <Panel role="status" className="flex flex-col gap-2">
+        <Panel className="flex flex-col gap-2">
           <MatchPoller />
           <h2 className="text-base font-semibold">Recontrôle en cours…</h2>
           <p className="text-sm text-muted-foreground">{check.match.statusReason ?? "Le nouveau score s'affichera ici automatiquement. Le worker doit être actif."}</p>
@@ -173,7 +178,7 @@ export default async function RecheckPage(props: PageProps<"/offres/[id]/cv/reco
           {!issues ? (
             <p className="text-sm text-danger">Profil maître de référence introuvable.</p>
           ) : blocking.length === 0 ? (
-            <p className="text-sm text-accent">✓ Dates, intitulés et entreprises viennent du profil maître ; chaque chiffre et mot-clé de l&apos;offre a sa source.</p>
+            <p className="text-sm text-accent"><Glyph>✓</Glyph> Dates, intitulés et entreprises viennent du profil maître ; chaque chiffre et mot-clé de l&apos;offre a sa source.</p>
           ) : (
             <ul className="flex flex-col gap-1">
               {blocking.map((i, k) => (

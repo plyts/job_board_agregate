@@ -14,6 +14,7 @@ import { CHANNELS, checkCoverLetter, CLOSED, getApplication, isOverdue, localDat
 import { personalDataProviders } from "@/modules/privacy";
 import { getCurrentProfile, getVersion } from "@/modules/profile";
 import { evidenceElements } from "@/modules/profile/content";
+import { Glyph } from "@/components/ui/Glyph";
 
 export const metadata: Metadata = { title: "Candidature" };
 
@@ -76,7 +77,7 @@ export default async function ApplicationPage(props: PageProps<"/candidatures/[i
         actions={
           <>
             <StatusBadge tone={meta.tone}>
-              {meta.glyph} {meta.label}
+              <Glyph>{meta.glyph}</Glyph> {meta.label}
             </StatusBadge>
             {app.matchScore !== null ? <span className="rounded-full bg-accent-soft px-2.5 py-1 font-mono text-[13px] font-medium text-accent">Matching {app.matchScore}/100</span> : null}
           </>
@@ -191,7 +192,7 @@ export default async function ApplicationPage(props: PageProps<"/candidatures/[i
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-accent">✓ Chaque chiffre et chaque mot-clé de l&apos;offre de la lettre a sa source dans le profil maître.</p>
+                <p className="text-sm text-accent"><Glyph>✓</Glyph> Chaque chiffre et chaque mot-clé de l&apos;offre de la lettre a sa source dans le profil maître.</p>
               )
             ) : null}
             {!sentLetter ? (

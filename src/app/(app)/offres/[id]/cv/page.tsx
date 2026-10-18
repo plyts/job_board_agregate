@@ -22,6 +22,7 @@ import { getOffer } from "@/modules/offers";
 import { personalDataProviders } from "@/modules/privacy";
 import { getCurrentProfile, getVersion } from "@/modules/profile";
 import { resetCvFromProfileAction, restoreCvVersionAction, startCvDraftAction } from "./actions";
+import { Glyph } from "@/components/ui/Glyph";
 
 export const metadata: Metadata = { title: "CV personnalisé" };
 
@@ -124,7 +125,7 @@ export default async function CvPage(props: PageProps<"/offres/[id]/cv">) {
                   {IMPORTANCE[r.importance]}
                   {meta ? (
                     <StatusBadge tone={meta.tone}>
-                      {meta.glyph} {meta.label}
+                      <Glyph>{meta.glyph}</Glyph> {meta.label}
                     </StatusBadge>
                   ) : null}
                 </span>

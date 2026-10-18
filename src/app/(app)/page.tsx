@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ScrollArea } from "@/components/ui/ScrollArea";
 import { STATUS_META } from "@/components/applications/labels";
@@ -11,6 +12,7 @@ import { requireUser } from "@/lib/auth/dal";
 import { cn } from "@/lib/cn";
 import { localDate } from "@/modules/applications";
 import { dailyGoal, getDashboard, type Period } from "@/modules/metrics";
+import { Glyph } from "@/components/ui/Glyph";
 
 const TZ = process.env.APP_TIME_ZONE ?? "Europe/Paris";
 const longDay = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
@@ -49,6 +51,8 @@ function Todo({ tag, tone, children, href, cta }: { tag: string; tone: Tone; chi
     </li>
   );
 }
+
+export const metadata: Metadata = { title: "Tableau de bord" };
 
 export default async function DashboardPage(props: PageProps<"/">) {
   const user = await requireUser();
@@ -160,7 +164,8 @@ export default async function DashboardPage(props: PageProps<"/">) {
         <div className="flex flex-wrap gap-2 pt-1 font-mono text-xs text-muted-foreground">
           <span className="rounded-full border border-border px-2.5 py-0.5">Doublons {rate(d.rates.duplicates)}</span>
           <span className="rounded-full border border-border px-2.5 py-0.5">Qualification {rate(d.rates.qualification)}</span>
-          <span className="rounded-full border border-border px-2.5 py-0.5">Qualifiée → envoyée {rate(d.rates.qualifiedToSent)}</span>
+          <span className="rounded-full border border-border px-2.5 py-0.5">Qualifiée <Glyph>→</Glyph>
+            <span className="sr-only">puis</span> envoyée {rate(d.rates.qualifiedToSent)}</span>
         </div>
       </Panel>
 

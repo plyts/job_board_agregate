@@ -49,16 +49,21 @@ export function LetterProposalPanel({ id, status, reason, proposal, aiAvailable,
           local (recommandé) ou donne ton consentement à un fournisseur dans <Link href="/reglages/confidentialite">Confidentialité</Link>.
         </p>
       ) : null}
-      {working ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          <MatchPoller />
-          {reason ?? "Le modèle rédige une proposition à partir de ton profil maître…"}
-        </p>
-      ) : status === "failed" && reason ? (
-        <p role="status" className="text-sm text-danger">
-          {reason}
-        </p>
-      ) : null}
+      {/* Une seule région d'état, toujours présente : l'arrivée de la proposition est annoncée au lecteur d'écran. */}
+      <p role="status" className={status === "failed" ? "text-sm text-danger" : "text-sm text-muted-foreground"}>
+        {working ? (
+          <>
+            <MatchPoller />
+            {reason ?? "Le modèle rédige une proposition à partir de ton profil maître…"}
+          </>
+        ) : status === "failed" && reason ? (
+          reason
+        ) : proposal ? (
+          <span className="sr-only">
+            Proposition prête : {proposal.paragraphs.length} paragraphe{proposal.paragraphs.length > 1 ? "s" : ""}, dont {proposal.paragraphs.length - usable} non repris.
+          </span>
+        ) : null}
+      </p>
       {proposal ? (
         <>
           <ol className="flex flex-col gap-2.5">

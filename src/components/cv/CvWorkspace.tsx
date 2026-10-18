@@ -12,6 +12,7 @@ import { cvQuality, reverseChronological } from "@/modules/cv/quality";
 import type { ProfileContent } from "@/modules/profile/content";
 import { QualityPanel } from "./QualityPanel";
 import { SuggestionsPanel, type SuggestionView } from "./SuggestionsPanel";
+import { Glyph } from "@/components/ui/Glyph";
 
 type Props = {
   offerId: string;
@@ -72,7 +73,8 @@ function Issues({ issues }: { issues: FactIssue[] }) {
     <ul className="flex flex-col gap-1">
       {issues.map((i, k) => (
         <li key={k} className={cn("text-[13px]", i.severity === "blocking" ? "text-danger" : "text-signal")}>
-          {i.severity === "blocking" ? "! " : "? "}
+          <Glyph>{i.severity === "blocking" ? "! " : "? "}</Glyph>
+          <span className="sr-only">{i.severity === "blocking" ? "Bloquant : " : "À vérifier : "}</span>
           {i.message}
         </li>
       ))}
@@ -337,7 +339,7 @@ export function CvWorkspace(props: Props) {
                       on && s.level === "unconfirmed" && "border-signal bg-panel",
                     )}
                   >
-                    {on ? "✓ " : "+ "}
+                    <Glyph>{on ? "✓ " : "+ "}</Glyph>
                     {s.name}
                     {s.level === "unconfirmed" ? " · sans preuve" : ""}
                   </button>
@@ -417,7 +419,7 @@ export function CvWorkspace(props: Props) {
         <Panel aria-label="Contrôle des faits" className="flex flex-col gap-2">
           <h2 className="text-sm font-semibold text-muted-foreground">Contrôle des faits</h2>
           {issues.length === 0 ? (
-            <p className="text-sm text-accent">✓ Chaque chiffre et chaque mot-clé de l&apos;offre a sa source dans le profil maître.</p>
+            <p className="text-sm text-accent"><Glyph>✓</Glyph> Chaque chiffre et chaque mot-clé de l&apos;offre a sa source dans le profil maître.</p>
           ) : (
             <Issues issues={issues} />
           )}

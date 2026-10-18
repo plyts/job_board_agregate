@@ -7,6 +7,7 @@ import { moveApplicationAction } from "@/app/(app)/candidatures/actions";
 import { cn } from "@/lib/cn";
 import { adjacentStatus, moveRefusal, type ApplicationStatus } from "@/modules/applications/rules";
 import { STATUS_META } from "./labels";
+import { Glyph } from "@/components/ui/Glyph";
 
 export type CardView = {
   id: string;
@@ -23,6 +24,13 @@ export type CardView = {
 
 /** Colonne telle que réglée par l'utilisateur : nom affiché (personnalisé ou par défaut) et masquage. */
 export type ColumnView = { status: ApplicationStatus; label: string; hidden: boolean };
+
+/** Nom annoncé par un lecteur d'écran : tout ce que la carte montre (score, prochaine action, retard), pas seulement le titre. */
+function cardName(c: CardView, column: string): string {
+  const score = c.score === null ? "" : ` · score ${c.score} sur 100`;
+  const action = c.nextAction ? ` · ${c.overdue ? "en retard : " : "prochaine action : "}${c.nextAction}${c.nextActionLabel ? ` ${c.nextActionLabel}` : ""}` : "";
+  return `${c.title}${c.company ? `, ${c.company}` : ""} — ${column}${score}${action}`;
+}
 
 function scoreTone(score: number | null) {
   if (score === null) return "text-muted-foreground";
@@ -155,7 +163,7 @@ export function KanbanBoard({ cards, columns }: { cards: CardView[]; columns: Co
                     tabIndex={0}
                     draggable
                     aria-describedby="kanban-aide"
-                    aria-label={`${c.title}${c.company ? `, ${c.company}` : ""} — ${label}`}
+                    aria-label={cardName(c, label)}
                     onDragStart={(e) => {
                       e.dataTransfer.setData("text/plain", c.id);
                       e.dataTransfer.effectAllowed = "move";
@@ -188,7 +196,11 @@ export function KanbanBoard({ cards, columns }: { cards: CardView[]; columns: Co
                     </label>
                     {c.nextAction ? (
                       <span className={cn("text-xs", c.overdue ? "font-semibold text-danger" : "text-muted-foreground")}>
-                        {c.overdue ? "! En retard · " : ""}
+                        {c.overdue ? (
+                          <>
+                            <Glyph>! </Glyph>En retard ·{" "}
+                          </>
+                        ) : null}
                         {c.nextAction}
                         {c.nextActionLabel ? ` · ${c.nextActionLabel}` : ""}
                       </span>

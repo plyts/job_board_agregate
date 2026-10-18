@@ -92,8 +92,12 @@ export default async function MatchingPage(props: PageProps<"/offres/[id]/matchi
         }
       />
 
+      {/* Région persistante : la fin du calcul est annoncée quand la page se rafraîchit d'elle-même. */}
+      <p role="status" className="sr-only">
+        {match.status === "done" ? `Comparaison terminée : score ${match.score ?? "inconnu"} sur 100.` : ""}
+      </p>
       {match.status === "pending" ? (
-        <Panel role="status" className="flex flex-col gap-2">
+        <Panel className="flex flex-col gap-2">
           <MatchPoller />
           <h2 className="text-base font-semibold">Comparaison en cours…</h2>
           <p className="text-sm text-muted-foreground">{match.statusReason ?? "Le résultat s'affichera ici automatiquement. Le worker doit être actif."}</p>

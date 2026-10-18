@@ -42,7 +42,8 @@ Offres (4) → Analyse (5) → Matching (6) → Éditeur (8) → Recontrôle (9)
 
 ## Accessibilité et clavier
 
-- Statuts toujours doublés d'un libellé et d'un symbole (✓ ◐ ? ○ ! –), jamais la couleur seule.
+- Statuts toujours doublés d'un libellé et d'un symbole (✓ ◐ ? ○ ! –), jamais la couleur seule. Le symbole est masqué aux lecteurs d'écran (composant `Glyph`) : le libellé porte le sens.
+- Traitements asynchrones (matching, recontrôle, suggestions, lettre) : une région d'état persistante annonce la fin et le résultat.
 - Raccourcis : `Ctrl K` recherche globale, `I` importer, `←/→` déplacer une carte Kanban sélectionnée, `A`/`R` accepter/refuser la suggestion active.
 - Cibles tactiles ≥ 40 px, contrastes AA mesurés dans le design system.
 - Sous 640 px : navigation au-dessus du contenu, Kanban en liste par colonne, tableaux défilables dans leur cadre.

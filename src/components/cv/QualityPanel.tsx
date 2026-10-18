@@ -86,7 +86,8 @@ export function QualityPanel({
         <ul className="flex flex-col gap-1.5 border-t border-border pt-2.5">
           {warnings.map((c, i) => (
             <li key={i} className="text-[13px] leading-5">
-              <span className="font-semibold text-danger">! </span>
+              <span className="font-semibold text-danger" aria-hidden="true">! </span>
+              <span className="sr-only">À corriger : </span>
               {c.message}
               {c.hint ? <span className="block text-muted-foreground">{c.hint}</span> : null}
             </li>

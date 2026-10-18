@@ -4,6 +4,7 @@ import { OFFER_STATUS_LABELS } from "@/components/offers/status";
 import { Panel } from "@/components/ui/Panel";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { companyOverview } from "@/modules/applications";
+import { Glyph } from "@/components/ui/Glyph";
 
 type Groups = Awaited<ReturnType<typeof companyOverview>>;
 
@@ -29,7 +30,7 @@ export function CompanyView({ groups }: { groups: Groups }) {
                   </Link>
                   {o.applicationStatus ? (
                     <StatusBadge tone={STATUS_META[o.applicationStatus].tone}>
-                      {STATUS_META[o.applicationStatus].glyph} {STATUS_META[o.applicationStatus].label}
+                      <Glyph>{STATUS_META[o.applicationStatus].glyph}</Glyph> {STATUS_META[o.applicationStatus].label}
                     </StatusBadge>
                   ) : (
                     <StatusBadge tone="neutral">Offre · {OFFER_STATUS_LABELS[o.offerStatus].label}</StatusBadge>

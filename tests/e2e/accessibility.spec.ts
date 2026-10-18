@@ -55,7 +55,10 @@ test("écrans du parcours critique : aucune violation WCAG 2.2 AA détectée", a
     await page.goto(`/candidatures${vue}`);
     found.push(...(await audit(page, `candidatures ${vue || "kanban"}`)));
   }
+  // Lecteur d'écran : la carte annonce aussi le score (et la prochaine action quand il y en a une).
   await page.goto("/candidatures");
+  const title = analyzedOfferTitle(project).replace(/[()]/g, "\\$&");
+  await expect(page.getByRole("listitem", { name: new RegExp(`^${title}, Nordwave — .* · score \\d+ sur 100`) })).toBeVisible();
   await page.getByText("Personnaliser les colonnes").click();
   found.push(...(await audit(page, "réglage des colonnes")));
 
@@ -69,4 +72,21 @@ test("écrans du parcours critique : aucune violation WCAG 2.2 AA détectée", a
   found.push(...(await audit(page, "sauvegardes")));
 
   expect(found).toEqual([]);
+});
+
+test("lecteur d'écran : titre de chaque page, symboles décoratifs masqués", async ({ page }, testInfo) => {
+  await signIn(page);
+  await expect(page).toHaveTitle("Tableau de bord · JobPilot");
+  await page.goto("/offres?q=Nordwave");
+  await page.getByRole("link", { name: analyzedOfferTitle(testInfo.project.name), exact: true }).click();
+  await page.waitForURL(/\/offres\/[0-9a-f-]{36}$/);
+  const offerUrl = page.url();
+  // ✓ ○ ◐ ● ★ seraient lus « coche », « cercle blanc »… : le sens est porté par le libellé voisin.
+  for (const path of ["/matching", "/cv"]) {
+    await page.goto(`${offerUrl}${path}`);
+    await expect(page.locator("main")).toBeVisible();
+    expect(await page.locator("main").ariaSnapshot(), path).not.toMatch(/[✓○◐●★]/);
+  }
+  await page.goto("/candidatures?vue=tableau");
+  expect(await page.locator("main").ariaSnapshot()).not.toMatch(/[✓○◐●★]/);
 });

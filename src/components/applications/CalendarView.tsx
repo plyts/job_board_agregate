@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import type { ApplicationRow } from "@/modules/applications";
+import { Glyph } from "@/components/ui/Glyph";
 
 type Item = { id: string; day: string; kind: "action" | "sent"; text: string; tone: "late" | "today" | "future" | "done" };
 
@@ -65,7 +66,14 @@ export function CalendarView({ rows, month, today, href }: { rows: ApplicationRo
                 </span>
                 {byDay(d).map((it, k) => (
                   <Link key={k} href={`/candidatures/${it.id}`} className={cn("rounded border px-1 py-0.5 text-[11px] leading-4 no-underline", tone[it.tone])}>
-                    {it.tone === "late" ? "! " : it.kind === "sent" ? "→ " : ""}
+                    {it.tone === "late" ? (
+                      <>
+                        <Glyph>! </Glyph>
+                        <span className="sr-only">En retard : </span>
+                      </>
+                    ) : it.kind === "sent" ? (
+                      <Glyph>→ </Glyph>
+                    ) : null}
                     {it.text}
                   </Link>
                 ))}
@@ -85,7 +93,13 @@ export function CalendarView({ rows, month, today, href }: { rows: ApplicationRo
               <h3 className={cn("text-sm font-semibold first-letter:uppercase", d === today && "text-accent")}>{dayFmt.format(new Date(`${d}T00:00:00Z`))}</h3>
               {byDay(d).map((it, k) => (
                 <Link key={k} href={`/candidatures/${it.id}`} className={cn("rounded-lg border bg-panel px-3 py-2 text-sm no-underline", tone[it.tone])}>
-                  {it.tone === "late" ? "! En retard · " : it.kind === "sent" ? "→ " : ""}
+                  {it.tone === "late" ? (
+                    <>
+                      <Glyph>! </Glyph>En retard ·{" "}
+                    </>
+                  ) : it.kind === "sent" ? (
+                    <Glyph>→ </Glyph>
+                  ) : null}
                   {it.text}
                 </Link>
               ))}

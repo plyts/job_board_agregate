@@ -27,7 +27,44 @@ Le passage est fait sur ordinateur et sur mobile. Défauts trouvés et corrigés
 - `aria-pressed` placé sur des liens ;
 - zones à défilement horizontal inaccessibles au clavier.
 
-axe ne couvre pas tout : la relecture au lecteur d'écran reste à faire.
+axe ne couvre pas tout. D'où une relecture au lecteur d'écran.
+
+### Relecture au lecteur d'écran (18/10/2026)
+
+**Méthode.** Relevé automatisé de ce qu'un lecteur d'écran annonce, sur 10 écrans : connexion, tableau de bord, offres, offre, matching, éditeur de CV, Kanban, profil, confidentialité, sauvegardes. Pour chacun :
+- titre du document et langue ;
+- points de repère et plan des titres ;
+- régions d'état ;
+- arbre d'accessibilité (`ariaSnapshot`).
+
+**Ce qui était déjà correct :**
+- `lang="fr"`, lien « Aller au contenu » ;
+- navigation et fil d'Ariane nommés ;
+- un seul `h1` par page et des niveaux de titres sans saut ;
+- tableaux à en-têtes de colonnes, formulaires étiquetés ;
+- annonce des déplacements du Kanban.
+
+**Défauts corrigés :**
+- **symboles lus à voix haute.** « ✓ Confirmée », « ○ Non démontrée », « ◐ Partielle », « ! En retard » ou les bascules « ✓ Python » étaient annoncés « coche… », « cercle blanc… ».
+  - Les symboles sont désormais masqués (composant `Glyph`) : le libellé porte le sens.
+  - Quand le symbole était seul porteur du sens, un texte réservé aux lecteurs d'écran le remplace (« Bloquant : », « À vérifier : », « En retard : »).
+- **carte du Kanban.** Son nom ne donnait que le poste, l'entreprise et la colonne. Il annonce aussi le score et la prochaine action (ou le retard).
+- **fin des traitements asynchrones non annoncée.** Matching, recontrôle, suggestions de CV, lettre proposée : la région « en cours » disparaissait avec le résultat. Une région d'état persistante annonce maintenant la fin (« Comparaison terminée : score 72 sur 100 », « 3 suggestions à examiner », « Proposition prête : 4 paragraphes, dont 1 non repris »).
+- **tableau de bord sans titre propre.** Le changement de page annonçait « JobPilot » seul ; il annonce « Tableau de bord ».
+
+**Garde-fous** (`accessibility.spec.ts`, ordinateur et mobile) :
+- titre de la page d'accueil ;
+- aucun symbole décoratif dans l'arbre d'accessibilité du matching, de l'éditeur de CV et du tableau des candidatures ;
+- nom complet des cartes du Kanban.
+
+**À faire par une personne :** une session réelle avec NVDA et Firefox (Windows), puis VoiceOver et Safari (macOS, iOS). Ce relevé lit l'arbre d'accessibilité calculé par Chromium, pas la voix d'un lecteur d'écran. Il ne juge ni la verbosité, ni l'ordre de lecture ressenti, ni le comportement des modes navigation et formulaire. Parcours à suivre :
+1. connexion ;
+2. import d'une offre ;
+3. matching ;
+4. adaptation du CV (accepter une suggestion avec A) ;
+5. déplacement d'une carte du Kanban au clavier ;
+6. confirmation d'envoi ;
+7. consentement IA.
 
 ## Charge et sauvegardes
 
