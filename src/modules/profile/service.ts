@@ -9,6 +9,7 @@ import { generateJournaled } from "@/modules/platform/llm/journal";
 import type { LlmRouter } from "@/modules/platform/llm/router";
 import type { ObjectStorage } from "@/modules/platform/storage";
 import { LlmError, type LlmClient } from "@/modules/platform/llm/types";
+import { profileQuality } from "@/modules/cv/quality";
 import { emptyProfile, ProfileContent, validationProblems } from "./content";
 import {
   buildProfileUserMessage,
@@ -51,6 +52,7 @@ export async function listVersions(db: Db, userId: string) {
       origin: profileVersions.origin,
       createdAt: profileVersions.createdAt,
       validatedAt: profileVersions.validatedAt,
+      quality: profileVersions.quality,
     })
     .from(profileVersions)
     .where(eq(profileVersions.userId, userId))
@@ -134,7 +136,10 @@ export async function validateDraft(db: Db, userId: string): Promise<ValidateRes
     ...validationProblems(draft.content),
   ];
   if (problems.length) return { ok: false, problems };
-  await db.update(profileVersions).set({ status: "validated", validatedAt: new Date(), updatedAt: new Date() }).where(eq(profileVersions.id, draft.id));
+  await db
+    .update(profileVersions)
+    .set({ status: "validated", validatedAt: new Date(), updatedAt: new Date(), quality: profileQuality(draft.content) })
+    .where(eq(profileVersions.id, draft.id));
   return { ok: true, version: draft.version };
 }
 

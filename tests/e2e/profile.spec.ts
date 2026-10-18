@@ -42,6 +42,11 @@ test("saisir le profil, voir la règle des preuves, valider puis ouvrir une nouv
 
   await expect(page).toHaveURL(/\/profil$/);
   await expect(page.getByText("Profil maître · version 1 · source de vérité")).toBeVisible();
+  // Bonnes pratiques figées avec la version validée, et rappelées dans l'historique.
+  const practices = page.getByRole("region", { name: "Bonnes pratiques du profil maître" });
+  await expect(practices).toContainText("Rapport figé à la validation de la version 1");
+  await expect(practices).toContainText("Verbe d'action en tête");
+  await expect(page.getByText(/bonnes pratiques \d+\/100/)).toBeVisible();
   const skillsView = page.getByRole("region", { name: "Compétences et preuves" });
   await expect(skillsView.getByText("Maîtrisée")).toBeVisible();
   await expect(skillsView.getByText("Data Engineer · Lumio")).toBeVisible();

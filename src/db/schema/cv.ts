@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, jsonb, pgEnum, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import type { CvContent } from "@/modules/cv/content";
+import type { QualityReport } from "@/modules/cv/quality";
 import { users } from "./identity";
 import { jobOffers } from "./offers";
 import { llmCalls } from "./platform";
@@ -33,6 +34,8 @@ export const cvVersions = pgTable(
     content: jsonb("content").$type<CvContent>().notNull(),
     /** Incrémenté à chaque modification du brouillon : refuse une sauvegarde faite sur un état périmé. */
     revision: integer("revision").notNull().default(0),
+    /** Rapport de bonnes pratiques figé à l'enregistrement de la version (avec la version des règles). */
+    quality: jsonb("quality").$type<QualityReport>(),
     suggestStatus: cvSuggestStatus("suggest_status").notNull().default("none"),
     suggestReason: text("suggest_reason"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

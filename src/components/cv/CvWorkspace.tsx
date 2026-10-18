@@ -8,7 +8,9 @@ import { Panel } from "@/components/ui/Panel";
 import { cn } from "@/lib/cn";
 import { CV_SECTIONS, SECTION_TITLES, type CvContent, type CvSection } from "@/modules/cv/content";
 import { factCheck, type FactIssue } from "@/modules/cv/factcheck";
+import { cvQuality, reverseChronological } from "@/modules/cv/quality";
 import type { ProfileContent } from "@/modules/profile/content";
+import { QualityPanel } from "./QualityPanel";
 import { SuggestionsPanel, type SuggestionView } from "./SuggestionsPanel";
 
 type Props = {
@@ -106,6 +108,12 @@ export function CvWorkspace(props: Props) {
     return m;
   }, [issues]);
   const blocking = issues.filter((i) => i.severity === "blocking");
+  const quality = useMemo(() => cvQuality(cv, profile, offerTerms, new Date(props.today)), [cv, profile, offerTerms, props.today]);
+  const sortByDate = () =>
+    edit((d) => {
+      const order = reverseChronological(d.experiences.map((e) => ({ ...profile.experiences.find((p) => p.id === e.sourceId)!, id: e.sourceId })));
+      d.experiences = order.map((id) => d.experiences.find((e) => e.sourceId === id)!);
+    });
 
   const save = () =>
     startTransition(async () => {
@@ -414,6 +422,18 @@ export function CvWorkspace(props: Props) {
             <Issues issues={issues} />
           )}
         </Panel>
+
+        <QualityPanel
+          report={quality}
+          note="Conseils de rédaction, recalculés à chaque modification et figés avec chaque version enregistrée. Ils ne bloquent rien : seul le contrôle des faits bloque."
+          actions={{
+            order: (
+              <Button className={small} onClick={sortByDate}>
+                Trier par date
+              </Button>
+            ),
+          }}
+        />
 
         <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-panel p-3 shadow-sm">
           <Button variant="primary" onClick={save} disabled={!dirty || pending}>

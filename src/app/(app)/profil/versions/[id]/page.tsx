@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { QualityPanel } from "@/components/cv/QualityPanel";
 import { ProfileView } from "@/components/profile/ProfileView";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { getDb } from "@/db/client";
@@ -24,6 +25,9 @@ export default async function VersionPage(props: PageProps<"/profil/versions/[id
         <span>Version {version.version}</span>
       </nav>
       <PageHeader eyebrow={`Version ${version.version} · lecture seule`} title={version.content.identity.fullName} />
+      {version.quality ? (
+        <QualityPanel report={version.quality} title="Bonnes pratiques de cette version" note={`Rapport figé à la validation, avec les règles v${version.quality.rulesVersion}.`} />
+      ) : null}
       <ProfileView content={version.content} />
     </>
   );

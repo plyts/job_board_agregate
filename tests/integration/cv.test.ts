@@ -162,6 +162,9 @@ describe("CV personnalisé", async () => {
     const d = await draft();
     const v1 = (await checkpointCvDraft(pool, userId, offerId))!;
     expect(v1).toMatchObject({ version: 1, status: "saved" });
+    // Bonnes pratiques figées avec la version, mots-clés de l'offre compris.
+    expect(v1.quality).toMatchObject({ rulesVersion: 1, score: expect.any(Number) });
+    expect(v1.quality!.keywords!.map((k) => [k.term, k.status])).toContainEqual(["dbt", "gap"]);
     expect((await getCvDraft(db, userId, offerId))!.version).toBe(2);
     // Contenu inchangé : pas de nouvelle version.
     expect((await checkpointCvDraft(pool, userId, offerId))!.id).toBe(v1.id);

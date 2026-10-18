@@ -42,6 +42,15 @@ test("adapter le CV : suggestions sourcées, contrôle des faits, recontrôle, f
   await expect(facts).not.toContainText("« 45 »");
 
   // Le CV laisse de côté l'expérience Sencia : le recontrôle doit le montrer.
+  // Bonnes pratiques : un ordre non antéchronologique est signalé, puis corrigé en un clic.
+  const practices = page.getByRole("region", { name: "Bonnes pratiques" });
+  await expect(practices).toContainText("Ordre antéchronologique");
+  await expect(practices.getByText("dbt · lacune, ne pas ajouter")).toBeVisible();
+  await page.getByRole("button", { name: "Descendre Data Engineer · Lumio" }).click();
+  await expect(practices).toContainText("devrait venir avant");
+  await practices.getByRole("button", { name: "Trier par date" }).click();
+  await expect(practices).not.toContainText("devrait venir avant");
+
   await page.getByRole("checkbox", { name: /Data Engineer · Sencia/ }).uncheck();
   await page.getByRole("button", { name: "Enregistrer le brouillon" }).click();
   await expect(page.getByText(/^Enregistré le/)).toBeVisible();
@@ -71,6 +80,7 @@ test("adapter le CV : suggestions sourcées, contrôle des faits, recontrôle, f
   await page.getByRole("link", { name: "CV personnalisé" }).click();
   const versions = page.getByRole("region", { name: "Versions" });
   await expect(versions.getByRole("row", { name: /v1 Finalisée/ })).toBeVisible();
+  await expect(versions.getByRole("row", { name: /v1 Finalisée/ })).toContainText(/\d+\/100 · règles v1/);
   await versions.getByRole("link", { name: "Comparer au brouillon" }).click();
   await expect(page.getByRole("region", { name: "Comparaison" })).toContainText("Aucune différence.");
 });

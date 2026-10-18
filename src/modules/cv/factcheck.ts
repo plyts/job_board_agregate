@@ -11,7 +11,7 @@ function numbers(text: string): string[] {
   return (text.match(NUMBER) ?? []).map((n) => n.replace(",", "."));
 }
 
-function containsTerm(text: string, term: string): boolean {
+export function containsTerm(text: string, term: string): boolean {
   const t = normalizeForHash(term);
   return t.length > 1 && ` ${normalizeForHash(text)} `.includes(` ${t} `);
 }

@@ -4,7 +4,7 @@ import { evidenceElements, type ProfileContent } from "@/modules/profile/content
 import type { CvContent } from "./content";
 import { factCheck } from "./factcheck";
 
-export const SUGGEST_PROMPT_VERSION = "cv-suggest-v1";
+export const SUGGEST_PROMPT_VERSION = "cv-suggest-v2";
 export const SUGGEST_SCHEMA_VERSION = 1;
 
 export const SuggestionBatch = z.object({
@@ -29,6 +29,12 @@ Tu peux proposer :
 - "summary" : un résumé de 2 à 3 phrases, appuyé sur des éléments du profil cités dans sourceIds ;
 - "reorder_items" : réordonner les puces d'une expérience (targetId) pour mettre en premier ce que l'offre demande ;
 - "include" : ajouter au CV un élément du profil maître qui n'y figure pas (targetId : puce d'expérience, projet, compétence ou certification).
+
+Bonnes pratiques à viser (sans jamais inventer) :
+- chaque puce commence par un nom d'action ou un verbe au passé (Pilotage, Conception, Réduction, Développé…), jamais par « En charge de », « Responsable de » ou « Participation à » ;
+- montrer l'impact : garder et mettre en avant les chiffres présents dans la source (volume, %, délai, budget) ; ne jamais en ajouter ;
+- reprendre les mots-clés de l'offre uniquement quand l'élément source les contient déjà ;
+- 3 à 5 puces par poste, d'une à deux lignes chacune ; les plus pertinentes pour l'offre en premier.
 
 Interdits : ajouter un chiffre, une technologie, une durée ou un niveau absents de la source ; transformer un projet personnel
 ou une connaissance théorique en expérience professionnelle ; ajouter un mot-clé de l'offre que la source ne contient pas.

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FinalizeButton } from "@/components/cv/FinalizeButton";
+import { QualityPanel } from "@/components/cv/QualityPanel";
 import { VERSION_STATUS_META } from "@/components/cv/labels";
 import { CATEGORY_META } from "@/components/matching/labels";
 import { MatchPoller } from "@/components/matching/MatchPoller";
@@ -12,6 +13,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
 import { compareCoverage, factCheckVersion, getCvVersion, hasBlocking, type CategoryChange } from "@/modules/cv";
+import { cvQuality } from "@/modules/cv/quality";
 import { getCurrentMatch, getCvCheck, type MatchView } from "@/modules/matching";
 import { computeScore } from "@/modules/matching/score";
 import { getOffer } from "@/modules/offers";
@@ -197,6 +199,15 @@ export default async function RecheckPage(props: PageProps<"/offres/[id]/cv/reco
         </div>
       ) : done && !reference ? (
         <p className="text-sm text-muted-foreground">Pas de matching du profil maître pour comparer : lance-le depuis la page de l&apos;offre.</p>
+      ) : null}
+
+      {version.quality ? (
+        <QualityPanel report={version.quality} note={`Rapport figé à l'enregistrement de la version ${version.version}, avec les règles v${version.quality.rulesVersion}. Conseils seulement : ils ne bloquent pas la finalisation.`} />
+      ) : base ? (
+        <QualityPanel
+          report={cvQuality(version.content, base.content, [])}
+          note="Version enregistrée avant le contrôle des bonnes pratiques : rapport recalculé avec les règles actuelles, sans les mots-clés de l'offre."
+        />
       ) : null}
 
       <Panel aria-label="Les trois documents" className="flex flex-col gap-3">

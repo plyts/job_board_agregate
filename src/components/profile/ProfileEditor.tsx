@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { discardDraftAction, saveDraftAction, validateDraftAction } from "@/app/(app)/profil/actions";
 import { Button } from "@/components/ui/Button";
 import { Input, Label, Textarea } from "@/components/ui/Field";
+import { QualityPanel } from "@/components/cv/QualityPanel";
 import { Panel } from "@/components/ui/Panel";
+import { profileQuality, reverseChronological } from "@/modules/cv/quality";
 import { evidenceElements, newElementId, SKILL_LEVELS, validationProblems, type ProfileContent } from "@/modules/profile/content";
 import { CERT_STATUS_LABELS, PROJECT_CONTEXT_LABELS, SKILL_LEVEL_LABELS } from "./labels";
 
@@ -65,6 +67,7 @@ export function ProfileEditor({ initial, locked }: { initial: ProfileContent; lo
 
   const evidence = evidenceElements(content);
   const localProblems = validationProblems(content);
+  const quality = useMemo(() => profileQuality(content), [content]);
 
   const save = () =>
     startTransition(async () => {
@@ -407,6 +410,18 @@ export function ProfileEditor({ initial, locked }: { initial: ProfileContent; lo
       </Section>
 
     </fieldset>
+
+      <QualityPanel
+        report={quality}
+        note="Bonnes pratiques de rédaction des expériences, recalculées à chaque modification et figées avec la version à sa validation. Un chiffre ajouté ici doit être réel : il devient la source du CV."
+        actions={{
+          order: (
+            <Button className="min-h-9 px-3" disabled={locked} onClick={() => edit((d) => void (d.experiences = reverseChronological(d.experiences).map((id) => d.experiences.find((e) => e.id === id)!)))}>
+              Trier par date
+            </Button>
+          ),
+        }}
+      />
 
       {/* Hors du formulaire verrouillé : un brouillon bloqué en extraction doit rester supprimable. */}
       <div className="sticky bottom-0 flex flex-col gap-3 rounded-xl border border-border bg-panel p-4 shadow-[0_-8px_24px_-12px_rgba(14,23,38,0.25)]">

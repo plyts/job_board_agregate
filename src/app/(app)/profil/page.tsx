@@ -3,11 +3,13 @@ import Link from "next/link";
 import { ImportCvForm } from "@/components/profile/ImportCvForm";
 import { ProfileView } from "@/components/profile/ProfileView";
 import { Button, ButtonLink } from "@/components/ui/Button";
+import { QualityPanel } from "@/components/cv/QualityPanel";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Panel } from "@/components/ui/Panel";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
+import { profileQuality } from "@/modules/cv/quality";
 import { getCurrentProfile, getDraft, listVersions } from "@/modules/profile";
 import { startDraftAction } from "./actions";
 
@@ -60,7 +62,18 @@ export default async function ProfilePage() {
       )}
 
       {current ? (
-        <ProfileView content={current.content} />
+        <>
+          <QualityPanel
+            report={current.quality ?? profileQuality(current.content)}
+            title="Bonnes pratiques du profil maître"
+            note={
+              current.quality
+                ? `Rapport figé à la validation de la version ${current.version}, avec les règles v${current.quality.rulesVersion}. Pour l'améliorer : « Modifier le profil », puis valider une nouvelle version.`
+                : "Version validée avant ce contrôle : rapport recalculé avec les règles actuelles."
+            }
+          />
+          <ProfileView content={current.content} />
+        </>
       ) : (
         <EmptyState title="Aucun profil validé">
           <p>Importe ton CV ou saisis ton profil. Le profil maître validé sert de référence au matching et à l&apos;adaptation des CV ; il n&apos;est jamais modifié par un CV personnalisé.</p>
@@ -79,6 +92,7 @@ export default async function ProfilePage() {
                 <span className="flex-1">
                   {v.status === "draft" ? "Brouillon" : `Validée le ${dateFmt.format(v.validatedAt!)}`} · {ORIGIN[v.origin]}
                 </span>
+                {v.quality ? <span className="font-mono text-xs text-muted-foreground">bonnes pratiques {v.quality.score}/100</span> : null}
                 {v.status === "validated" ? (
                   <Link href={`/profil/versions/${v.id}`} className="font-semibold text-accent">
                     Consulter

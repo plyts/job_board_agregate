@@ -146,6 +146,8 @@ describe("profil maître", async () => {
     expect(blocked.ok).toBe(false);
     for (const u of draft.uncertainties) await resolveUncertainty(db, userId, u.id);
     expect(await validateDraft(db, userId)).toEqual({ ok: true, version: 1 });
+    // Rapport de bonnes pratiques figé avec la version validée.
+    expect((await getCurrentProfile(db, userId))!.quality).toMatchObject({ rulesVersion: 1, rules: { order: { status: "ok" } } });
     // Idempotent : une version déjà validée n'est pas réextraite.
     expect(await extractProfile({ db, llm: router }, { versionId, userId })).toEqual({ kind: "skipped" });
   });

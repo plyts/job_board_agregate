@@ -12,6 +12,7 @@ import { getCurrentProfile } from "@/modules/profile";
 import type { ProfileContent } from "@/modules/profile/content";
 import { CvContent, cvFromProfile } from "./content";
 import { exportDocx, exportFileName, exportPdf } from "./export";
+import { cvQuality } from "./quality";
 import { factCheck, hasBlocking, offerTermsFrom, type FactIssue } from "./factcheck";
 import {
   buildSuggestUserMessage,
@@ -83,6 +84,7 @@ export async function listCvVersions(db: Db, userId: string, offerId: string) {
       baseProfileVersionId: cvVersions.baseProfileVersionId,
       createdAt: cvVersions.createdAt,
       finalizedAt: cvVersions.finalizedAt,
+      quality: cvVersions.quality,
     })
     .from(cvVersions)
     .where(and(eq(cvVersions.userId, userId), eq(cvVersions.offerId, offerId), inArray(cvVersions.status, ["saved", "finalized"])))
@@ -188,10 +190,14 @@ export async function checkpointCvDraft(pool: Pool, userId: string, offerId: str
       .orderBy(desc(cvVersions.version))
       .limit(1);
     if (latest && latest.baseProfileVersionId === draft.baseProfileVersionId && same(latest.content, draft.content)) return latest;
+    // Bonnes pratiques figées avec la version, telles que les règles les évaluent aujourd'hui.
+    const profile = await profileContent(tx.db, draft.baseProfileVersionId);
+    const requirements = (await currentRequirements(tx.db, userId, offerId)) ?? [];
+    const quality = profile ? cvQuality(draft.content, profile, offerTermsFrom(requirements)) : null;
     await tx.db.update(cvVersions).set({ version: draft.version + 1 }).where(eq(cvVersions.id, draft.id));
     const [saved] = await tx.db
       .insert(cvVersions)
-      .values({ userId, offerId, baseProfileVersionId: draft.baseProfileVersionId, version: draft.version, status: "saved", content: draft.content })
+      .values({ userId, offerId, baseProfileVersionId: draft.baseProfileVersionId, version: draft.version, status: "saved", content: draft.content, quality })
       .returning();
     return saved!;
   });

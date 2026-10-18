@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { CvWorkspace } from "@/components/cv/CvWorkspace";
+import { QualityDelta } from "@/components/cv/QualityPanel";
 import { VERSION_STATUS_META } from "@/components/cv/labels";
 import { CATEGORY_META } from "@/components/matching/labels";
 import { ButtonLink } from "@/components/ui/Button";
@@ -14,6 +15,7 @@ import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
 import { cn } from "@/lib/cn";
 import { currentRequirements, getCvDraft, getCvVersion, lineDiff, listCvVersions, listSuggestions, offerTermsFrom, renderCv, type RenderedCv } from "@/modules/cv";
+import { cvQuality } from "@/modules/cv/quality";
 import { getCurrentMatch } from "@/modules/matching";
 import { getOffer } from "@/modules/offers";
 import { providerStatuses } from "@/modules/platform";
@@ -198,6 +200,7 @@ export default async function CvPage(props: PageProps<"/offres/[id]/cv">) {
                   <th className="py-2 font-medium">Version</th>
                   <th className="py-2 font-medium">État</th>
                   <th className="py-2 font-medium">Créée</th>
+                  <th className="py-2 font-medium">Bonnes pratiques</th>
                   <th className="py-2 font-medium">Actions</th>
                 </tr>
               </thead>
@@ -209,6 +212,7 @@ export default async function CvPage(props: PageProps<"/offres/[id]/cv">) {
                       <StatusBadge tone={VERSION_STATUS_META[v.status].tone}>{VERSION_STATUS_META[v.status].label}</StatusBadge>
                     </td>
                     <td className="py-2.5 text-muted-foreground">{when.format(v.createdAt)}</td>
+                    <td className="py-2.5 tabular-nums">{v.quality ? `${v.quality.score}/100 · règles v${v.quality.rulesVersion}` : "—"}</td>
                     <td className="flex flex-wrap items-center gap-3 py-2">
                       <Link href={`/offres/${offer.id}/cv?comparer=${v.id}#comparaison`} className="font-semibold text-accent">
                         Comparer au brouillon
@@ -248,6 +252,7 @@ export default async function CvPage(props: PageProps<"/offres/[id]/cv">) {
               Fermer la comparaison
             </Link>
           </div>
+          <QualityDelta before={compared.quality} after={cvQuality(draft.content, base.content, offerTermsFrom(requirements ?? []))} />
           {diff.every((d) => d.op === "same") ? <p className="text-sm text-muted-foreground">Aucune différence.</p> : null}
           <ol className="flex flex-col font-mono text-[13px] leading-6">
             {diff.map((d, i) => (

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { index, integer, jsonb, pgEnum, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import type { QualityReport } from "@/modules/cv/quality";
 import type { ProfileContent } from "@/modules/profile/content";
 import { users } from "./identity";
 
@@ -22,6 +23,8 @@ export const profileVersions = pgTable(
     version: integer("version").notNull(),
     status: profileVersionStatus("status").notNull().default("draft"),
     content: jsonb("content").$type<ProfileContent>().notNull(),
+    /** Rapport de bonnes pratiques figé à la validation (avec la version des règles). */
+    quality: jsonb("quality").$type<QualityReport>(),
     /** Points à vérifier avant validation (extraction ambiguë, élément absent du CV source…). */
     uncertainties: jsonb("uncertainties").$type<ProfileUncertainty[]>().notNull().default([]),
     origin: text("origin", { enum: ["manual", "import", "edit"] }).notNull(),
