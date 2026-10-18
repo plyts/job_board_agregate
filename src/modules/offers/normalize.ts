@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { normalizeForHash } from "@/lib/text";
 
 // Paramètres de suivi retirés de l'URL canonique : ils ne changent pas l'annonce.
 const TRACKING_PARAMS = [/^utm_/i, /^(gclid|fbclid|msclkid|mc_cid|mc_eid|ref|refid|referrer|trk|trackingid|src|source|origin|from)$/i];
@@ -39,14 +40,7 @@ export function cleanText(input: string): string {
     .trim();
 }
 
-/** Forme comparable : casse, accents de mise en forme et ponctuation ignorés. */
-export function normalizeForHash(input: string): string {
-  return input
-    .normalize("NFKC")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim();
-}
+export { normalizeForHash };
 
 export function contentHash(text: string): string {
   return createHash("sha256").update(normalizeForHash(text)).digest("hex");

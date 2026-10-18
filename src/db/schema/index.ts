@@ -4,3 +4,4 @@ export * from "./offers";
 export * from "./platform";
 export * from "./profile";
 export * from "./matching";
+export * from "./cv";

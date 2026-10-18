@@ -64,6 +64,20 @@
       "when": 1792327458938,
       "tag": "0008_match-items-snapshot",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792341497694,
+      "tag": "0009_cv",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792341498952,
+      "tag": "0010_cv-immutability",
+      "breakpoints": true
     }
   ]
 }

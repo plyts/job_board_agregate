@@ -1,7 +1,8 @@
-import { and, asc, desc, eq, inArray, lt } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lt } from "drizzle-orm";
 import type { Pool } from "pg";
 import type { Db } from "@/db/client";
-import { jobOffers, jobRequirements, matchAnalyses, matchItems, offerAnalyses, profileVersions, type MatchEvidence } from "@/db/schema";
+import { cvVersions, jobOffers, jobRequirements, matchAnalyses, matchItems, offerAnalyses, profileVersions, type MatchEvidence } from "@/db/schema";
+import { cvAsProfile } from "@/modules/cv/content";
 import { withTransaction, type TxContext } from "@/db/transaction";
 import { generateJournaled } from "@/modules/platform/llm/journal";
 import type { LlmRouter } from "@/modules/platform/llm/router";
@@ -38,7 +39,7 @@ export async function requestMatch(deps: MatchRequestDeps, userId: string, offer
     await tx.db
       .update(matchAnalyses)
       .set({ state: "superseded" })
-      .where(and(eq(matchAnalyses.offerId, offerId), eq(matchAnalyses.state, "current"), eq(matchAnalyses.userId, userId)));
+      .where(and(eq(matchAnalyses.offerId, offerId), eq(matchAnalyses.state, "current"), eq(matchAnalyses.userId, userId), isNull(matchAnalyses.cvVersionId)));
     const [row] = await tx.db
       .insert(matchAnalyses)
       .values({ userId, offerId, offerAnalysisId: analysis.id, profileVersionId: profile.id, weights })
@@ -78,8 +79,15 @@ export async function computeMatch(
     .limit(1);
   if (!match || match.status === "done") return { kind: "skipped" };
   const [profile] = await db.select().from(profileVersions).where(eq(profileVersions.id, match.profileVersionId)).limit(1);
-  const content: ProfileContent | undefined = profile?.content;
+  let content: ProfileContent | undefined = profile?.content;
   if (!content) return { kind: "skipped" };
+  if (match.cvVersionId) {
+    // Recontrôle : on compare l'offre à ce que le CV personnalisé montre réellement.
+    const [cv] = await db.select({ content: cvVersions.content }).from(cvVersions).where(eq(cvVersions.id, match.cvVersionId)).limit(1);
+    if (!cv) return { kind: "skipped" };
+    content = cvAsProfile(cv.content, content);
+  }
+  const subject = content;
   const requirements = await db
     .select()
     .from(jobRequirements)
@@ -89,7 +97,7 @@ export async function computeMatch(
   const composed = new Map<string, Composed>();
   const toJudge: RequirementInput[] = [];
   requirements.forEach((r, i) => {
-    const excluded = exclusionHit(r, content.preferences.exclusions);
+    const excluded = exclusionHit(r, subject.preferences.exclusions);
     if (excluded) {
       composed.set(r.id, {
         requirementId: r.id,
@@ -100,7 +108,7 @@ export async function computeMatch(
         source: "rule",
       });
     } else if (r.kind === "years" && r.minYears !== null) {
-      composed.set(r.id, { requirementId: r.id, ...yearsRule(r.minYears, content, deps.today), source: "rule" });
+      composed.set(r.id, { requirementId: r.id, ...yearsRule(r.minYears, subject, deps.today), source: "rule" });
     } else {
       toJudge.push({ ref: `R${i + 1}`, kind: r.kind, importance: r.importance, label: r.label, value: r.value });
     }
@@ -123,7 +131,7 @@ export async function computeMatch(
             schemaVersion: MATCH_SCHEMA_VERSION,
             dataClass: "personal",
             system: MATCH_SYSTEM,
-            user: buildMatchUserMessage(toJudge, content),
+            user: buildMatchUserMessage(toJudge, subject),
             schema: MatchJudgement,
             maxTokens: 16000,
             effort: "medium",
@@ -154,7 +162,7 @@ export async function computeMatch(
       for (const raw of judged.items) {
         const requirementId = refToId.get(raw.requirementRef);
         if (!requirementId || composed.has(requirementId)) continue;
-        composed.set(requirementId, { requirementId, ...guardJudgement(raw, content) });
+        composed.set(requirementId, { requirementId, ...guardJudgement(raw, subject) });
       }
     } else {
       mode = "rules_only";
@@ -173,7 +181,7 @@ export async function computeMatch(
     }
   }
 
-  const elements = new Map(evidenceElements(content).map((e) => [e.id, e]));
+  const elements = new Map(evidenceElements(subject).map((e) => [e.id, e]));
   const ordered = requirements.map((r) => ({ requirement: r, item: composed.get(r.id)! }));
   const { score, factors } = computeScore(
     ordered.map(({ requirement, item }) => ({ kind: requirement.kind, importance: requirement.importance, category: item.category })),
@@ -208,14 +216,7 @@ export async function computeMatch(
   return { kind: "done", score, mode };
 }
 
-export async function getCurrentMatch(db: Db, userId: string, offerId: string) {
-  const [match] = await db
-    .select()
-    .from(matchAnalyses)
-    .where(and(eq(matchAnalyses.userId, userId), eq(matchAnalyses.offerId, offerId), eq(matchAnalyses.state, "current")))
-    .orderBy(desc(matchAnalyses.createdAt))
-    .limit(1);
-  if (!match) return null;
+async function withItems(db: Db, match: typeof matchAnalyses.$inferSelect) {
   const items = await db
     .select({ item: matchItems, requirement: jobRequirements })
     .from(matchItems)
@@ -228,6 +229,77 @@ export async function getCurrentMatch(db: Db, userId: string, offerId: string) {
     .where(eq(profileVersions.id, match.profileVersionId))
     .limit(1);
   return { match, items, profileVersion: profile?.version ?? null };
+}
+
+export type MatchView = Awaited<ReturnType<typeof withItems>>;
+
+/** Matching courant de l'offre avec le profil maître (hors recontrôles de CV). */
+export async function getCurrentMatch(db: Db, userId: string, offerId: string): Promise<MatchView | null> {
+  const [match] = await db
+    .select()
+    .from(matchAnalyses)
+    .where(and(eq(matchAnalyses.userId, userId), eq(matchAnalyses.offerId, offerId), eq(matchAnalyses.state, "current"), isNull(matchAnalyses.cvVersionId)))
+    .orderBy(desc(matchAnalyses.createdAt))
+    .limit(1);
+  return match ? withItems(db, match) : null;
+}
+
+/** Dernier recontrôle d'une version de CV. */
+export async function getCvCheck(db: Db, userId: string, cvVersionId: string): Promise<MatchView | null> {
+  const [match] = await db
+    .select()
+    .from(matchAnalyses)
+    .where(and(eq(matchAnalyses.userId, userId), eq(matchAnalyses.cvVersionId, cvVersionId), eq(matchAnalyses.state, "current")))
+    .orderBy(desc(matchAnalyses.createdAt))
+    .limit(1);
+  return match ? withItems(db, match) : null;
+}
+
+export type RequestCvCheckResult = { ok: true; matchId: string } | { ok: false; code: "NO_VERSION" | "NO_ANALYSIS"; message: string };
+
+/**
+ * Recontrôle d'une version enregistrée du CV : nouveau matching sur le contenu du CV, avec les poids
+ * du matching de référence pour que les deux scores soient comparables. Idempotent tant que l'analyse
+ * de l'offre ne change pas.
+ */
+export async function requestCvCheck(deps: MatchRequestDeps, userId: string, cvVersionId: string): Promise<RequestCvCheckResult> {
+  const { db } = deps;
+  const [cv] = await db
+    .select()
+    .from(cvVersions)
+    .where(and(eq(cvVersions.id, cvVersionId), eq(cvVersions.userId, userId), inArray(cvVersions.status, ["saved", "finalized"])))
+    .limit(1);
+  if (!cv) return { ok: false, code: "NO_VERSION", message: "Version de CV introuvable ou non enregistrée." };
+  const [analysis] = await db
+    .select({ id: offerAnalyses.id })
+    .from(offerAnalyses)
+    .where(and(eq(offerAnalyses.offerId, cv.offerId), eq(offerAnalyses.state, "current")))
+    .limit(1);
+  if (!analysis) return { ok: false, code: "NO_ANALYSIS", message: "L'offre n'a plus d'analyse courante." };
+  const existing = await getCvCheck(db, userId, cv.id);
+  if (existing && existing.match.offerAnalysisId === analysis.id && existing.match.status !== "failed") return { ok: true, matchId: existing.match.id };
+  const reference = await getCurrentMatch(db, userId, cv.offerId);
+
+  const matchId = await withTransaction(deps.pool, async (tx) => {
+    await tx.db
+      .update(matchAnalyses)
+      .set({ state: "superseded" })
+      .where(and(eq(matchAnalyses.cvVersionId, cv.id), eq(matchAnalyses.state, "current"), eq(matchAnalyses.userId, userId)));
+    const [row] = await tx.db
+      .insert(matchAnalyses)
+      .values({
+        userId,
+        offerId: cv.offerId,
+        offerAnalysisId: analysis.id,
+        profileVersionId: cv.baseProfileVersionId,
+        cvVersionId: cv.id,
+        weights: reference?.match.weights ?? DEFAULT_WEIGHTS,
+      })
+      .returning({ id: matchAnalyses.id });
+    await deps.enqueueMatch(tx, { matchId: row!.id, userId });
+    return row!.id;
+  });
+  return { ok: true, matchId };
 }
 
 export function parseWeights(input: Record<string, unknown>): Weights | null {

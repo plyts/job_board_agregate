@@ -7,6 +7,7 @@ import { MatchPoller } from "@/components/matching/MatchPoller";
 import { RequestMatchButton } from "@/components/matching/RequestMatchButton";
 import { WeightsForm } from "@/components/matching/WeightsForm";
 import { KIND_LABELS } from "@/components/offers/labels";
+import { ButtonLink } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Panel } from "@/components/ui/Panel";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -79,7 +80,16 @@ export default async function MatchingPage(props: PageProps<"/offres/[id]/matchi
       <PageHeader
         eyebrow={`Matching · profil maître v${current.profileVersion ?? "?"} × offre`}
         title="Pourquoi cette offre te correspond"
-        actions={match.status !== "pending" ? <RequestMatchButton offerId={offer.id} label="Relancer le matching" /> : null}
+        actions={
+          <>
+            {match.status === "done" ? (
+              <ButtonLink href={`/offres/${offer.id}/cv`} variant="primary">
+                Adapter mon CV
+              </ButtonLink>
+            ) : null}
+            {match.status !== "pending" ? <RequestMatchButton offerId={offer.id} label="Relancer le matching" /> : null}
+          </>
+        }
       />
 
       {match.status === "pending" ? (

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OfferAnalysisView } from "@/components/offers/OfferAnalysisView";
 import { OFFER_SOURCE_LABELS, OFFER_STATUS_LABELS } from "@/components/offers/status";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -58,6 +58,7 @@ export default async function OfferPage(props: PageProps<"/offres/[id]">) {
               ) : (
                 <RequestMatchButton offerId={offer.id} />
               )}
+              <ButtonLink href={`/offres/${offer.id}/cv`}>CV personnalisé</ButtonLink>
               {offer.status !== "discarded" ? (
                 <form action={decideOfferAction.bind(null, offer.id, "discard")}>
                   <Button type="submit">Écarter l&apos;offre</Button>

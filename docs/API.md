@@ -10,6 +10,8 @@ Toutes les routes exigent une session ; toute entrée est validée par un schém
 
 ## Routes HTTP (MVP)
 
+Implémentation actuelle : l'éditeur de CV passe par des Server Actions (`src/app/(app)/offres/[id]/cv/actions.ts`), validées par Zod et filtrées par la session : créer le brouillon, l'enregistrer (`revision` attendue, refus si périmée), demander des suggestions, accepter / modifier / refuser / annuler une suggestion (refus avec message si le contrôle des faits échoue), restaurer une version, repartir du profil courant, recontrôler (fige une version puis lance son matching), finaliser (refus avec la liste des écarts). Les routes ci-dessous restent le contrat cible pour un client externe.
+
 | Méthode | Route | Rôle | Réponse |
 |---|---|---|---|
 | POST | `/api/profile/imports` | Téléverse un CV (multipart, PDF/DOCX ≤ 10 Mo) | `202 { importId, profileVersionId (draft) }` |
@@ -25,14 +27,7 @@ Toutes les routes exigent une session ; toute entrée est validée par un schém
 | POST | `/api/offers/:id/analyze` | Relance manuelle (idempotente) | `202` |
 | POST | `/api/matches` | `{ offerId, cvVersionId?, weights? }` | `202 { matchId }` ou `200` si en cache |
 | GET | `/api/matches/:id` | Score, facteurs, items | `200 MatchAnalysis` |
-| POST | `/api/cv-versions` | Crée un brouillon pour une offre à partir du profil courant | `201` |
-| GET | `/api/cv-versions/:id` | Contenu + suggestions | `200` |
-| PATCH | `/api/cv-versions/:id/suggestions/:sid` | `{ state, after? }` | `200` / `422 SUGGESTION_UNSOURCED` |
-| PATCH | `/api/cv-versions/:id/content` | Réordonnancement, édition libre (vérifiée au recontrôle) | `200` |
-| GET | `/api/cv-versions/:a/diff/:b` | Diff structuré | `200` |
-| POST | `/api/cv-versions/:id/recheck` | Recontrôle (score + vérification des faits) | `202` |
-| POST | `/api/cv-versions/:id/finalize` | Fige la version (refusé si vérification en échec) | `200` / `409 FACT_CHECK_FAILED` |
-| POST | `/api/cv-versions/:id/exports` | `{ format: "pdf" \| "docx" }` | `202 { exportId }` |
+| GET | `/api/cv/:versionId/export?format=pdf\|docx` | Télécharge une version enregistrée ou finalisée (jamais un brouillon), en pièce jointe | `200` fichier / `400 INVALID_FORMAT` / `401` / `404` (brouillon, version d'un autre compte) |
 | POST | `/api/applications` | `{ offerId, cvVersionId? }` | `201` / `409 APPLICATION_EXISTS` |
 | PATCH | `/api/applications/:id` | Statut, prochaine action, notes | `200` (crée un événement) |
 | POST | `/api/applications/:id/send-confirmation` | `{ sentAt, channel, documentId }` — fige le document | `200` |

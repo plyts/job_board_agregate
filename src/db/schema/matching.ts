@@ -1,6 +1,7 @@
 import { index, integer, jsonb, pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import type { MatchCategory, Weights } from "@/modules/matching/score";
 import { analysisState, jobRequirements, offerAnalyses, requirementImportance, requirementKind } from "./analysis";
+import { cvVersions } from "./cv";
 import { users } from "./identity";
 import { jobOffers } from "./offers";
 import { llmCalls } from "./platform";
@@ -38,7 +39,7 @@ export const matchAnalyses = pgTable(
       .notNull()
       .references(() => profileVersions.id, { onDelete: "cascade" }),
     /** Version de CV personnalisé comparée (recontrôle), sinon le profil maître. */
-    cvVersionId: uuid("cv_version_id"),
+    cvVersionId: uuid("cv_version_id").references(() => cvVersions.id, { onDelete: "cascade" }),
     state: analysisState("state").notNull().default("current"),
     status: matchStatus("status").notNull().default("pending"),
     statusReason: text("status_reason"),

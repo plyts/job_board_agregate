@@ -37,7 +37,7 @@ Monolithe modulaire en TypeScript : une seule base de code, deux processus.
 | Documents | Disque local ; S3 compatible | **S3 compatible** (disque local en dev, même interface) | Une dépendance de plus en prod | — |
 | IA | Claude seul ; plusieurs fournisseurs ; modèle local | **Routeur multi-fournisseurs** (ADR 0006) : API compatibles OpenAI (Groq, OpenRouter, Gemini, Mistral, Cerebras, local) et Claude, essayés dans un ordre configurable, sorties validées par Zod | Qualité variable selon le modèle, quotas gratuits | Qualité mesurée insuffisante sur le jeu d'évaluation |
 | Recherche | Postgres full-text ; pgvector ; moteur dédié | **Postgres full-text + trigrammes** au MVP | Pas de sémantique | Mesure sur jeu d'évaluation montrant un gain de rappel (V2 : pgvector) |
-| Export CV | react-pdf ; HTML → PDF via Chromium ; DOCX | **Gabarit HTML → PDF (Chromium) + DOCX (lib `docx`)** | Chromium dans le worker | — |
+| Export CV | react-pdf ; HTML → PDF via Chromium ; DOCX ; `pdf-lib` | **PDF texte par `pdf-lib` + DOCX (`docx`), générés à la demande** (ADR 0008) | Mise en page simple, une colonne | — |
 | Auth | Auth.js, Better Auth ; sessions en base | **Sessions en base, sans inscription publique** (ADR 0005), cookie `HttpOnly; Secure; SameSite=Lax`, scrypt | Pas d'OAuth ni de MFA au MVP | Passage au multi-utilisateur ou exposition publique |
 
 ## Modules
@@ -66,8 +66,8 @@ Chaque module expose une API TypeScript (`src/modules/<nom>/index.ts`) ; les aut
 | *(synchrone)* récupération d'URL | Import par URL | URL canonique vérifiée avant tout appel réseau | Faite pendant la requête (5 s max) pour un retour immédiat ; refus robots/CGU/adresse interne → l'utilisateur colle le texte, l'URL est conservée |
 | `offer.analyze` | Offre nouvelle | Clé = `sha256(texte normalisé) + version du schéma + version du prompt` ; résultat en cache | 3 essais, temporisation 30 s / 2 min / 10 min, puis « échec » visible |
 | `profile.extract` | Import de CV | Clé = empreinte du fichier | idem |
-| `match.compute` | Analyse terminée, nouvelle version de profil ou de CV | Clé = (offre, version de document) | idem |
-| `cv.export` | Demande d'export | Clé = (version, format) | idem |
+| `match.compute` | Matching demandé, ou recontrôle d'une version de CV (`cv_version_id`) | Clé = matching | idem |
+| `cv.suggest` | Demande de suggestions dans l'éditeur | Clé = brouillon | idem ; sans fournisseur autorisé pour le CV, échec immédiat et message clair (l'éditeur reste utilisable à la main) |
 | *(pg-boss)* expiration | Continu | — | Une tâche active au-delà de `expireInSeconds` est reprise ou marquée en échec par pg-boss : pas de watchdog maison |
 | `reminders.due` | Tous les matins | — | — |
 
@@ -86,7 +86,7 @@ L'enregistrement métier et la mise en file se font dans **la même transaction*
 2. **Sortie structurée** : schéma JSON imposé, validé par Zod ; une sortie invalide est une erreur (nouvel essai), jamais corrigée « à la main ».
 3. **Ancrage** : chaque champ extrait porte un `quote` ; le serveur vérifie que la citation existe réellement dans le texte source (correspondance normalisée), sinon le champ passe en INCERTAIN.
 4. **Matching en deux temps** : règles déterministes (années à partir des dates, lieu, contrat, exclusions) puis jugement du modèle exigence par exigence, avec obligation de citer des identifiants d'éléments du profil. Le **score est calculé par le code** à partir des catégories et des poids.
-5. **Garde-fou CV** : une suggestion doit référencer des éléments du profil ; le serveur rejette toute suggestion qui introduit une compétence, un chiffre, une date ou un niveau absent de ces éléments.
+5. **Garde-fou CV** (ADR 0008) : une suggestion doit référencer des éléments du profil, sinon elle est écartée sans être affichée (et refusée par une contrainte SQL) ; celle qui ajoute un chiffre ou un mot-clé technique de l'offre absent de sa source est bloquée et affichée avec sa raison. Le même contrôle des faits, déterministe, tourne dans l'éditeur et avant la finalisation.
 6. **Traçabilité** : chaque tentative est journalisée dans `llm_calls` (fournisseur, modèle, versions de prompt et schéma, jetons, coût, durée, empreinte d'entrée) sans le contenu.
 7. **Routage** : fournisseurs essayés dans l'ordre de `LLM_PROVIDERS` ; repli sur le suivant en cas de 429, quota journalier atteint, erreur ou sortie invalide ; données personnelles réservées aux fournisseurs autorisés.
 

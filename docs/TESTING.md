@@ -14,6 +14,10 @@ Priorité aux comportements critiques, pas à la couverture.
 | Charge | Script | 100 offres importées d'un coup : toutes analysées, aucun doublon d'analyse, coût et durée mesurés |
 | Accessibilité | axe-core dans Playwright | Écrans du parcours critique |
 
+## Worker pendant les tests e2e
+
+Le worker ne tourne pas pendant Playwright. Les données nécessaires sont préparées dans `tests/e2e/global-setup.ts` avec un faux client IA rattaché au fournisseur « local » (aucun coût) ; les matchings mis en file par un scénario (recontrôle d'un CV) sont traités par `tests/e2e/worker.ts`, avec le même jugement simulé.
+
 ## Jeu d'évaluation
 
 **État réel** : `eval/offers/` contient 30 offres fictives annotées : métiers variés (data, développement, DevOps, sécurité, produit, support), français, anglais et mélange des deux, CDI, CDD, stage, alternance, freelance, temps partiel, 3 injections de consignes, offres vagues, très courtes, très longues ou en listes à puces, salaire absent ou masqué. `npm run eval:offers -- --yes` les soumet au modèle et affiche rappel, accord sur l'importance, citations invalides, contenus interdits et coût. Un test unitaire vérifie que chaque mot-clé attendu figure bien dans l'annonce (annotation vérifiable). Jamais exécuté contre le modèle à ce jour.

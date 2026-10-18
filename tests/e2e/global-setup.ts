@@ -8,11 +8,12 @@ import { importOffer } from "../../src/modules/offers";
 import { FakeLlmClient } from "../../src/modules/platform/llm/fake";
 import { LocalFsStorage } from "../../src/modules/platform/storage";
 import { CV_EXTRACTION, CV_TEXT, EXTRACTION, OFFER_TEXT } from "../helpers/fixtures";
+import { generateSuggestions, requestSuggestions, startCvDraft } from "../../src/modules/cv";
 import { computeMatch, requestMatch } from "../../src/modules/matching";
 import { LlmRouter } from "../../src/modules/platform/llm/router";
 import { saveDraft, startDraft, validateDraft } from "../../src/modules/profile";
 import { toProfileContent } from "../../src/modules/profile/extract";
-import { analyzedOfferTitle, E2E_PROFILE_USER, E2E_PROJECTS, E2E_USER } from "./fixtures";
+import { analyzedOfferTitle, E2E_JUDGEMENT, E2E_PROFILE_USER, E2E_PROJECTS, E2E_USER } from "./fixtures";
 
 /** Prépare la base e2e : migrations, compte de test et une offre déjà analysée (faux client IA, aucun appel payant). */
 export default async function globalSetup() {
@@ -56,15 +57,23 @@ export default async function globalSetup() {
       // Matching déjà calculé (le worker ne tourne pas pendant les tests e2e).
       const requested = await requestMatch({ db, pool, enqueueMatch: async () => {} }, user.id, imported.offerId);
       if (!requested.ok) throw new Error(`Préparation e2e : ${requested.message}`);
-      const judge = new FakeLlmClient("modele-e2e", undefined, "local").respondWith({
-        items: [
-          { requirementRef: "R2", category: "confirmed", evidenceIds: [lumio], rationale: "30 pipelines Python/SQL chez Lumio.", action: "Rien à faire." },
-          { requirementRef: "R3", category: "not_demonstrated", evidenceIds: [], rationale: "dbt absent du profil.", action: "Ne pas l'ajouter sans expérience réelle." },
-          { requirementRef: "R4", category: "confirmed", evidenceIds: [content.projects[0]!.id], rationale: "Projet Databricks.", action: "Préciser le contexte." },
-        ],
-      });
+      const judge = new FakeLlmClient("modele-e2e", undefined, "local").respondWith(E2E_JUDGEMENT(content));
       const judgeRouter = new LlmRouter([{ client: judge, policy: { allowsPersonalData: true, requestsPerMinute: null, requestsPerDay: null } }]);
       await computeMatch({ db, pool, llm: judgeRouter, budgetUsd: 1000, today: new Date("2026-10-18T12:00:00Z") }, { matchId: requested.matchId, userId: user.id });
+
+      // Brouillon de CV avec un lot de suggestions déjà passé au garde-fou.
+      const cv = await startCvDraft(db, user.id, imported.offerId);
+      if (!cv.ok) throw new Error(`Préparation e2e : ${cv.message}`);
+      await requestSuggestions({ db, pool, enqueueSuggest: async () => {} }, user.id, imported.offerId);
+      const [mission, achievement] = content.experiences[0]!.items;
+      const suggester = new FakeLlmClient("modele-e2e", undefined, "local").respondWith({
+        suggestions: [
+          { kind: "rephrase", targetId: mission!.id, text: "Conception et maintenance de 30 pipelines Python et SQL orchestrés par Airflow.", order: null, sourceIds: [lumio], rationale: "Reprend les termes « Python et SQL » de l'offre.", covers: "Python et SQL" },
+          { kind: "rephrase", targetId: achievement!.id, text: "Migration de l'entrepôt vers BigQuery (4 To) avec dbt.", order: null, sourceIds: [], rationale: "Met en avant dbt.", covers: "dbt" },
+        ],
+      });
+      const suggestRouter = new LlmRouter([{ client: suggester, policy: { allowsPersonalData: true, requestsPerMinute: null, requestsPerDay: null } }]);
+      await generateSuggestions({ db, llm: suggestRouter, budgetUsd: 1000 }, { draftId: cv.draft.id, userId: user.id });
     }
   } finally {
     await pool.end();

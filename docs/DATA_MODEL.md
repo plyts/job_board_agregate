@@ -42,8 +42,8 @@ llm_calls (journal de tous les appels IA)
 | `offer_analyses` | `offer_id`, `schema_version`, `prompt_version`, `model`, `llm_call_id`, `status` | Une seule analyse `current` par offre |
 | `match_analyses` | `offer_id`, `offer_analysis_id`, `profile_version_id`, `cv_version_id null`, `state` (current, superseded), `status` (pending, done, failed), `mode` (model, rules_only), `weights jsonb`, `score`, `factors jsonb`, `llm_call_id` | Un seul matching courant par offre ; changer les poids recalcule le score sans appel IA |
 | `match_items` | `match_id`, `requirement_id`, `kind` et `importance` figés, `category` (confirmed, partial, to_confirm, not_demonstrated, potential_incompatibility, not_applicable), `evidence jsonb` [{id, label, text}], `rationale`, `action`, `source` (rule, model, guard) | `category ∈ {confirmed, partial}` ⇒ `evidence` non vide (garde-fou serveur) |
-| `cv_versions` | `base_profile_version_id`, `target_offer_id`, `parent_id`, `version int`, `content jsonb`, `status` (draft, finalized), `content_hash` | `finalized` ⇒ immuable |
-| `cv_suggestions` | `cv_version_id`, `kind` (rephrase, reorder, emphasize), `path`, `before`, `after`, `source_refs uuid[]`, `state` (pending, accepted, rejected, edited) | `source_refs` non vide (contrainte `CHECK`) |
+| `cv_versions` | `offer_id`, `base_profile_version_id`, `version int`, `status` (draft, saved, finalized), `content jsonb` (sélection ordonnée d'éléments du profil, identifiants sources), `revision`, `suggest_status`, `finalized_at` | Un seul brouillon par offre (unique partielle) ; `(offer_id, version)` unique ; `saved` et `finalized` immuables (trigger), seul le passage `saved → finalized` à contenu identique est permis |
+| `cv_suggestions` | `cv_version_id` (brouillon), `position`, `kind` (rephrase, summary, reorder_items, include), `target_id`, `text`, `order`, `source_ids jsonb`, `rationale`, `covers`, `state` (pending, accepted, rejected, edited, blocked), `block_reason`, `before jsonb`, `llm_call_id` | `source_ids` non vide (contrainte `CHECK`) ; `before` permet d'annuler une décision |
 | `applications` | `offer_id`, `company_id`, `status`, `cv_version_id`, `match_score`, `next_action`, `next_action_at`, `sent_at null`, `channel` | Unique partielle `(user_id, offer_id) where status not in ('abandoned','rejected')` ; `status = sent` ⇒ `sent_at` et un document `sent` existent |
 | `application_documents` | `application_id`, `kind` (cv, cover_letter), `role` (draft, sent), `storage_key`, `sha256`, `cv_version_id` | `role = sent` : ni `UPDATE` ni `DELETE` (trigger) |
 | `application_events` | `application_id`, `type`, `from_status`, `to_status`, `payload jsonb`, `occurred_at` | Append-only (trigger) ; source unique des métriques |
@@ -61,7 +61,7 @@ llm_calls (journal de tous les appels IA)
 
 ## État réel des tables
 
-Créées à ce jour (migrations `drizzle/0000` à `0008`) : `users`, `sessions`, `login_attempts`, `llm_calls`, `companies`, `job_offers`, `offer_imports`, `offer_analyses`, `job_requirements`, `requirement_corrections`, `profile_versions`, `match_analyses`, `match_items`. Les autres tables de ce document restent à créer avec leur module.
+Créées à ce jour (migrations `drizzle/0000` à `0010`) : `users`, `sessions`, `login_attempts`, `llm_calls`, `companies`, `job_offers`, `offer_imports`, `offer_analyses`, `job_requirements`, `requirement_corrections`, `profile_versions`, `match_analyses` (avec `cv_version_id` pour les recontrôles), `match_items`, `cv_versions`, `cv_suggestions`. Les autres tables de ce document restent à créer avec leur module.
 
 ## Migrations
 

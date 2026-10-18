@@ -1,4 +1,4 @@
-import { normalizeForHash } from "@/modules/offers/normalize";
+import { normalizeForHash } from "@/lib/text";
 import { type ProfileContent } from "@/modules/profile/content";
 import type { MatchCategory } from "./score";
 

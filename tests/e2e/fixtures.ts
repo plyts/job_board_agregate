@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import type { ProfileContent } from "../../src/modules/profile/content";
 
 export const E2E_PROJECTS = ["desktop", "mobile"] as const;
 
@@ -17,3 +18,12 @@ export async function signIn(page: Page, user: { email: string; password: string
   await page.getByRole("button", { name: "Se connecter" }).click();
   await page.waitForURL("/");
 }
+
+/** Jugement simulé du matching, identique pour le profil maître et pour les recontrôles de CV. */
+export const E2E_JUDGEMENT = (content: ProfileContent) => ({
+  items: [
+    { requirementRef: "R2", category: "confirmed", evidenceIds: [content.experiences[0]!.id], rationale: "30 pipelines Python/SQL chez Lumio.", action: "Rien à faire." },
+    { requirementRef: "R3", category: "not_demonstrated", evidenceIds: [], rationale: "dbt absent du profil.", action: "Ne pas l'ajouter sans expérience réelle." },
+    { requirementRef: "R4", category: "confirmed", evidenceIds: content.projects.slice(0, 1).map((p) => p.id), rationale: "Projet Databricks.", action: "Préciser le contexte." },
+  ],
+});

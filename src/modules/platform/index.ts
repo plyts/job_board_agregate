@@ -1,5 +1,17 @@
 export { logger } from "./logger";
-export { analysisJobOptions, createBoss, extractionJobOptions, matchJobOptions, ensureQueues, getBoss, QUEUES, SCHEDULES, transactionDb, type QueueName } from "./queue";
+export {
+  analysisJobOptions,
+  createBoss,
+  extractionJobOptions,
+  matchJobOptions,
+  ensureQueues,
+  getBoss,
+  QUEUES,
+  SCHEDULES,
+  suggestJobOptions,
+  transactionDb,
+  type QueueName,
+} from "./queue";
 export { getStorage, LocalFsStorage, type ObjectStorage } from "./storage";
 export { AnthropicLlmClient, DEFAULT_MODEL } from "./llm/anthropic";
 export { FakeLlmClient } from "./llm/fake";
