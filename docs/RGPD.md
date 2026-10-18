@@ -18,6 +18,7 @@
 | Profil maître (import de CV) | CV PDF/DOCX, identité, coordonnées, expériences, formations, compétences | construire le profil sourcé | exécution du service | fournisseur IA, **texte masqué et sur consentement** (`profile.extract`) |
 | Matching | profil sans coordonnées, exigences de l'offre | mesurer l'adéquation | exécution du service | fournisseur IA, masqué et sur consentement (`match.judge`) |
 | CV personnalisé | sélection du profil, reformulations | adapter le CV à l'offre | exécution du service | fournisseur IA, masqué et sur consentement (`cv.suggest`) |
+| Lettre proposée | profil sans coordonnées, exigences de l'offre et leur couverture | proposer une lettre sourcée | exécution du service | fournisseur IA, masqué et sur consentement (`letter.draft`) |
 | Candidatures | étapes, dates, notes, lettre, documents réellement envoyés | suivi | exécution du service | aucun |
 | Contacts de recruteurs | nom, rôle, e-mail, téléphone, lien | suivi des échanges | intérêt légitime (art. 6.1.f) ; données de tiers, minimales | aucun, jamais envoyés à un modèle |
 | Journal des appels IA | fournisseur, modèle, finalité, jetons, coût, décomptes de masquage, empreinte de l'entrée | budget, quotas, preuve de minimisation | intérêt légitime | aucun ; **aucun contenu stocké** |
@@ -26,7 +27,7 @@
 
 ## Envois aux modèles d'IA
 
-Tout appel portant des données personnelles passe par une seule frontière, `generateJournaled` (`src/modules/platform/llm/journal.ts`). Les modules métier ne peuvent pas la contourner.
+Tout appel portant des données personnelles (`profile.extract`, `match.judge`, `cv.suggest`, `letter.draft`) passe par une seule frontière, `generateJournaled` (`src/modules/platform/llm/journal.ts`). Les modules métier ne peuvent pas la contourner.
 
 1. **Avant l'envoi : masquage local** (`src/modules/privacy/pii.ts`, règles versionnées `PII_RULES_VERSION`).
    - Données remplacées par une étiquette : e-mail, téléphone, adresse, code postal (en-tête du CV), date de naissance, âge, nationalité, situation familiale, n° de sécurité sociale, IBAN, liens personnels (LinkedIn, GitHub, site), nom et prénom.

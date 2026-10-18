@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lt } from "drizzle-orm";
 import type { Pool } from "pg";
 import type { Db } from "@/db/client";
 import { applicationContacts, applicationDocuments, applicationEvents, applications, companies, cvVersions, jobOffers } from "@/db/schema";
@@ -7,8 +7,12 @@ import { withTransaction, type TxContext } from "@/db/transaction";
 import { currentRequirements, exportCvVersion, letterFactCheck, offerTermsFrom } from "@/modules/cv";
 import { exportLetterDocx, exportLetterPdf, letterFileName } from "@/modules/cv/export";
 import { getCurrentMatch } from "@/modules/matching";
+import { generateJournaled } from "@/modules/platform/llm/journal";
+import type { LlmRouter } from "@/modules/platform/llm/router";
+import { LlmError, type LlmClient } from "@/modules/platform/llm/types";
 import type { ObjectStorage } from "@/modules/platform/storage";
 import { getCurrentProfile, getVersion } from "@/modules/profile";
+import { buildLetterUserMessage, guardLetter, LETTER_PROMPT_VERSION, LETTER_SCHEMA_VERSION, LETTER_SYSTEM, LetterDraft, letterText, type LetterProposal } from "./letter";
 import { addDays, APPLICATION_STATUSES, CLOSED, initialStatus, localDate, moveRefusal, type ApplicationStatus } from "./rules";
 
 export type Application = typeof applications.$inferSelect;
@@ -391,6 +395,7 @@ async function letterContext(db: Db, userId: string, found: Found, cvVersionId: 
   const requirements = (await currentRequirements(db, userId, found.offer.id)) ?? [];
   return {
     profile: base.content,
+    requirements,
     offerTerms: offerTermsFrom(requirements),
     meta: { offerTitle: found.offer.title, company: found.company, date: new Date(), city: base.content.identity.location },
   };
@@ -435,6 +440,160 @@ export async function coverLetterFile(db: Db, userId: string, applicationId: str
     fileName: letterFileName(ctx.profile, ctx.meta, format),
     contentType: format === "pdf" ? "application/pdf" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Lettre proposée par l'IA (letter.draft) : une proposition sourcée, contrôlée, que l'utilisateur reprend ou écarte
+
+export type LetterRequestDeps = { db: Db; pool: Pool; enqueueLetter: (tx: TxContext, job: { applicationId: string; userId: string }) => Promise<void> };
+export type LetterRequestResult = { ok: true } | { ok: false; error: string };
+
+/** Demande une proposition de lettre : mise en file transactionnelle, idempotente tant qu'une demande est en cours. */
+export async function requestLetterDraft(deps: LetterRequestDeps, userId: string, applicationId: string): Promise<LetterRequestResult> {
+  const found = await getApplication(deps.db, userId, applicationId);
+  if (!found) return { ok: false, error: "Candidature introuvable." };
+  if (found.documents.some((d) => d.kind === "cover_letter")) return { ok: false, error: "La lettre a déjà été envoyée : elle est figée." };
+  if (found.application.letterStatus === "queued" || found.application.letterStatus === "running") return { ok: true };
+  const ctx = await letterContext(deps.db, userId, found, null);
+  if (!ctx) return { ok: false, error: "Valide d'abord ton profil maître." };
+  if (!ctx.requirements.length) return { ok: false, error: "L'offre doit d'abord être analysée." };
+  await withTransaction(deps.pool, async (tx) => {
+    await tx.db
+      .update(applications)
+      .set({ letterStatus: "queued", letterReason: null, letterProposal: null, updatedAt: new Date() })
+      .where(and(eq(applications.id, applicationId), eq(applications.userId, userId)));
+    await deps.enqueueLetter(tx, { applicationId, userId });
+  });
+  return { ok: true };
+}
+
+export type LetterGenerationDeps = { db: Db; llm: LlmClient | LlmRouter | null; budgetUsd?: number; today?: Date };
+export type LetterOutcome =
+  | { kind: "done"; paragraphs: number; flagged: number; dropped: number }
+  | { kind: "skipped" }
+  | { kind: "deferred"; reason: string }
+  | { kind: "failed"; reason: string };
+
+/** Rédige la proposition (worker). Le profil est une donnée personnelle : masqué à la frontière, consentement requis. */
+export async function draftLetter(
+  deps: LetterGenerationDeps,
+  job: { applicationId: string; userId: string },
+  attempt: { isFinal: boolean } = { isFinal: false },
+): Promise<LetterOutcome> {
+  const { db } = deps;
+  const found = await getApplication(db, job.userId, job.applicationId);
+  const status = found?.application.letterStatus;
+  if (!found || (status !== "queued" && status !== "running")) return { kind: "skipped" };
+  const set = (letterStatus: Application["letterStatus"], letterReason: string | null, letterProposal?: LetterProposal) =>
+    db
+      .update(applications)
+      .set({ letterStatus, letterReason, ...(letterProposal ? { letterProposal } : {}), updatedAt: new Date() })
+      .where(eq(applications.id, found.application.id));
+
+  const ctx = await letterContext(db, job.userId, found, null);
+  if (!ctx || !ctx.requirements.length) {
+    await set("failed", "Profil maître ou analyse de l'offre introuvable.");
+    return { kind: "failed", reason: "missing" };
+  }
+  if (!deps.llm) {
+    const reason = "Aucun fournisseur IA n'est configuré : rédige la lettre toi-même.";
+    await set("failed", reason);
+    return { kind: "failed", reason };
+  }
+  const match = await getCurrentMatch(db, job.userId, found.offer.id);
+  const categories = new Map(match?.items.map(({ item }) => [item.requirementId, item.category]) ?? []);
+  await set("running", null);
+
+  let result;
+  try {
+    result = await generateJournaled(
+      db,
+      deps.llm,
+      job.userId,
+      {
+        purpose: "letter.draft",
+        promptVersion: LETTER_PROMPT_VERSION,
+        schemaVersion: LETTER_SCHEMA_VERSION,
+        dataClass: "personal",
+        system: LETTER_SYSTEM,
+        user: buildLetterUserMessage(
+          { title: found.offer.title, company: found.company },
+          ctx.requirements.map((r) => ({ label: r.label, importance: r.importance, category: categories.get(r.id) ?? null })),
+          ctx.profile,
+        ),
+        schema: LetterDraft,
+        privacy: { names: [ctx.profile.identity.fullName] },
+        maxTokens: 4000,
+        effort: "medium",
+      },
+      { budgetUsd: deps.budgetUsd },
+    );
+  } catch (err) {
+    if (!(err instanceof LlmError)) throw err;
+    if (err.code === "budget_exceeded" || err.code === "quota_exhausted") {
+      const reason = "Budget ou quotas IA du jour atteints : la proposition arrivera plus tard.";
+      await set("queued", reason);
+      return { kind: "deferred", reason };
+    }
+    if (err.code === "no_provider") {
+      const reason = "Aucun fournisseur IA n'est autorisé et consenti pour recevoir ton profil masqué : rédige la lettre toi-même.";
+      await set("failed", reason);
+      return { kind: "failed", reason };
+    }
+    if (err.retryable && !attempt.isFinal) {
+      await set("queued", `Échec temporaire (${err.message}) : nouvel essai automatique.`);
+      throw err;
+    }
+    const reason = `Proposition impossible : ${err.message}.`;
+    await set("failed", reason);
+    return { kind: "failed", reason };
+  }
+
+  const guarded = guardLetter(result.output, ctx.profile, ctx.offerTerms, ctx.profile.identity.fullName || null, deps.today);
+  if (!guarded.paragraphs.length) {
+    const reason = "Aucun paragraphe proposé ne s'appuie sur ton profil maître : rédige la lettre toi-même.";
+    await set("failed", reason);
+    return { kind: "failed", reason };
+  }
+  const flagged = guarded.paragraphs.filter((p) => p.issues.length).length;
+  await set("done", null, { ...guarded, promptVersion: LETTER_PROMPT_VERSION, llmCallId: result.callId, createdAt: new Date().toISOString() });
+  return { kind: "done", paragraphs: guarded.paragraphs.length, flagged, dropped: guarded.dropped };
+}
+
+export type LetterDecision = { ok: true } | { ok: false; error: string };
+
+/** Reprend la proposition dans la lettre (paragraphes sans signalement uniquement), puis l'efface. */
+export async function acceptLetterProposal(db: Db, userId: string, applicationId: string): Promise<LetterDecision> {
+  const found = await getApplication(db, userId, applicationId);
+  const proposal = found?.application.letterProposal;
+  if (!found || !proposal) return { ok: false, error: "Aucune proposition à reprendre." };
+  if (found.documents.some((d) => d.kind === "cover_letter")) return { ok: false, error: "La lettre a déjà été envoyée : elle est figée." };
+  const text = letterText(proposal);
+  if (!text) return { ok: false, error: "Tous les paragraphes proposés sont signalés : rien à reprendre." };
+  await db
+    .update(applications)
+    .set({ coverLetter: text.slice(0, 8000), letterStatus: "none", letterReason: null, letterProposal: null, updatedAt: new Date() })
+    .where(and(eq(applications.id, applicationId), eq(applications.userId, userId)));
+  return { ok: true };
+}
+
+export async function discardLetterProposal(db: Db, userId: string, applicationId: string): Promise<boolean> {
+  if (!UUID.test(applicationId)) return false;
+  const rows = await db
+    .update(applications)
+    .set({ letterStatus: "none", letterReason: null, letterProposal: null, updatedAt: new Date() })
+    .where(and(eq(applications.id, applicationId), eq(applications.userId, userId)))
+    .returning({ id: applications.id });
+  return rows.length === 1;
+}
+
+/** Propositions restées en file (worker arrêté, budget atteint) : remises en file par le balayage. */
+export async function findStalledLetters(db: Db, olderThan: Date) {
+  return db
+    .select({ applicationId: applications.id, userId: applications.userId })
+    .from(applications)
+    .where(and(inArray(applications.letterStatus, ["queued", "running"]), lt(applications.updatedAt, olderThan)))
+    .limit(100);
 }
 
 export type ContactInput = { name: string; role: string | null; email: string | null; phone: string | null; url: string | null; note: string | null };

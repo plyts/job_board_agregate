@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { applicationOfferTitle, signIn } from "./fixtures";
+import { draftLetterWithFakeModel } from "./worker";
 
 // Parcours qui modifie des données persistantes : une seconde tentative partirait d'un autre état.
 test.describe.configure({ retries: 0 });
@@ -47,8 +48,21 @@ test("suivre une candidature : Kanban au clavier, envoi confirmé avec fichier f
   await contacts.getByRole("button", { name: "Ajouter le contact" }).click();
   await expect(contacts).toContainText("Talent acquisition");
 
-  // Lettre de motivation : un chiffre inventé est bloqué, la version prouvée est jointe et figée à l'envoi.
+  // Proposition de lettre : désactivée sans fournisseur consenti ; une proposition (modèle local simulé) est sourcée,
+  // le paragraphe sans preuve est signalé et n'est pas repris.
   const letter = page.getByRole("region", { name: "Lettre de motivation" });
+  const proposal = letter.getByRole("region", { name: "Proposition de lettre" });
+  await expect(proposal).toContainText("la proposition de lettre est désactivée");
+  await draftLetterWithFakeModel(page.url().split("/").pop()!);
+  await page.reload();
+  await expect(proposal.getByRole("listitem", { name: "Ce que j'apporte — non reprise" })).toContainText("« dbt » est mis en avant sans preuve dans le profil maître.");
+  await expect(proposal.getByRole("listitem", { name: "Ce que j'apporte", exact: true })).toContainText("Sources : Data Engineer · Lumio");
+  await proposal.getByRole("button", { name: "Reprendre dans ma lettre" }).click();
+  await expect(letter.getByLabel("Lettre de motivation")).toHaveValue(/^Nordwave construit[\s\S]*30 pipelines Python et SQL\.\n\nJe serais heureuse d'en parler avec vous\.$/);
+  await expect(letter).toContainText("✓ Chaque chiffre et chaque mot-clé de l'offre de la lettre a sa source");
+  await expect(proposal.getByRole("list")).toHaveCount(0);
+
+  // Lettre de motivation : un chiffre inventé est bloqué, la version prouvée est jointe et figée à l'envoi.
   await letter.getByLabel("Lettre de motivation").fill("J'ai mené 12 projets.");
   await letter.getByRole("button", { name: "Enregistrer la lettre" }).click();
   await expect(letter).toContainText("le chiffre « 12 » n'apparaît pas dans le profil maître");

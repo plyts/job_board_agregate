@@ -5,15 +5,18 @@ import { refresh } from "next/cache";
 import { z } from "zod";
 import { getDb, getPool } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
-import { getApplicationsDeps } from "@/lib/applications-deps";
+import { getApplicationsDeps, getLetterDeps } from "@/lib/applications-deps";
 import {
+  acceptLetterProposal,
   addContact,
   APPLICATION_STATUSES,
   CHANNELS,
   confirmSend,
   createApplication,
   deleteContact,
+  discardLetterProposal,
   moveApplication,
+  requestLetterDraft,
   saveCoverLetter,
   saveNotes,
   setNextAction,
@@ -118,6 +121,27 @@ export async function saveCoverLetterAction(applicationId: string, _prev: Applic
   const text = formData.get("coverLetter");
   if (!Id.safeParse(applicationId).success || typeof text !== "string" || text.length > 8000) return { error: "Lettre invalide (8 000 caractères maximum)." };
   if (!(await saveCoverLetter(getDb(), user.id, applicationId, text))) return { error: "Candidature introuvable." };
+  refresh();
+  return { ok: true };
+}
+
+/** Demande au modèle une proposition de lettre (profil masqué, fournisseur autorisé et consenti). */
+export async function requestLetterDraftAction(applicationId: string): Promise<ApplicationActionState> {
+  const user = await requireUser();
+  if (!Id.safeParse(applicationId).success) return { error: "Candidature inconnue." };
+  const r = await requestLetterDraft(getLetterDeps(), user.id, applicationId);
+  if (!r.ok) return { error: r.error };
+  refresh();
+  return { ok: true };
+}
+
+export async function decideLetterProposalAction(applicationId: string, decision: "accept" | "discard"): Promise<ApplicationActionState> {
+  const user = await requireUser();
+  if (!Id.safeParse(applicationId).success) return { error: "Candidature inconnue." };
+  if (decision === "accept") {
+    const r = await acceptLetterProposal(getDb(), user.id, applicationId);
+    if (!r.ok) return { error: r.error };
+  } else if (!(await discardLetterProposal(getDb(), user.id, applicationId))) return { error: "Candidature introuvable." };
   refresh();
   return { ok: true };
 }

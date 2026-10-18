@@ -3,10 +3,11 @@ import type { Pool } from "pg";
 import { z } from "zod";
 import type { Db } from "@/db/client";
 import { analyzeOffer, findStalledOffers } from "@/modules/analysis";
+import { draftLetter, findStalledLetters } from "@/modules/applications";
 import { findStalledSuggestions, generateSuggestions } from "@/modules/cv";
 import { deleteExpiredSessions, purgeLoginAttempts } from "@/modules/identity";
 import { computeMatch, findStalledMatches } from "@/modules/matching";
-import { analysisJobOptions, extractionJobOptions, logger, matchJobOptions, SCHEDULES, suggestJobOptions } from "@/modules/platform";
+import { analysisJobOptions, extractionJobOptions, letterJobOptions, logger, matchJobOptions, SCHEDULES, suggestJobOptions } from "@/modules/platform";
 import { extractProfile, findStalledExtractions, purgeImportedSources, sourceRetentionDays } from "@/modules/profile";
 import type { LlmRouter } from "@/modules/platform/llm/router";
 import type { LlmClient } from "@/modules/platform/llm/types";
@@ -16,6 +17,7 @@ const AnalyzeJob = z.object({ offerId: z.uuid(), userId: z.uuid() });
 const ExtractJob = z.object({ versionId: z.uuid(), userId: z.uuid() });
 const MatchJob = z.object({ matchId: z.uuid(), userId: z.uuid() });
 const SuggestJob = z.object({ draftId: z.uuid(), userId: z.uuid() });
+const LetterJob = z.object({ applicationId: z.uuid(), userId: z.uuid() });
 
 export type WorkerDeps = { db: Db; pool: Pool; llm: LlmClient | LlmRouter | null; budgetUsd?: number; storage?: ObjectStorage };
 
@@ -93,6 +95,20 @@ export async function startWorker(boss: PgBoss, deps: WorkerDeps): Promise<void>
     logger.info({ jobId: job.id, outcome: outcome.kind }, "suggestions de CV");
   });
 
+  // Lettre proposée par l'IA : sans fournisseur, la demande échoue avec un message clair ; la lettre se rédige à la main.
+  await boss.work("letter.draft", { batchSize: 1, includeMetadata: true, ...pace }, async ([job]) => {
+    if (!job) return;
+    const data = LetterJob.safeParse(job.data);
+    if (!data.success) {
+      logger.error({ jobId: job.id }, "tâche letter.draft invalide ignorée");
+      return;
+    }
+    const outcome = await draftLetter({ db: deps.db, llm: deps.llm, budgetUsd: deps.budgetUsd }, data.data, {
+      isFinal: job.retryCount >= job.retryLimit,
+    });
+    logger.info({ jobId: job.id, outcome: outcome.kind }, "proposition de lettre");
+  });
+
   await boss.work("offer.resume", async () => {
     const olderThan = new Date(Date.now() - 15 * 60 * 1000);
     const stalled = await findStalledOffers(deps.db, olderThan);
@@ -110,8 +126,13 @@ export async function startWorker(boss: PgBoss, deps: WorkerDeps): Promise<void>
     }
     const suggestions = await findStalledSuggestions(deps.db, olderThan);
     for (const s of suggestions) await boss.send("cv.suggest", s, suggestJobOptions(s.draftId));
-    if (stalled.length || extractions.length || matches.length || suggestions.length) {
-      logger.info({ offers: stalled.length, profiles: extractions.length, matches: matches.length, suggestions: suggestions.length }, "tâches remises en file");
+    const letters = await findStalledLetters(deps.db, olderThan);
+    for (const l of letters) await boss.send("letter.draft", l, letterJobOptions(l.applicationId));
+    if (stalled.length || extractions.length || matches.length || suggestions.length || letters.length) {
+      logger.info(
+        { offers: stalled.length, profiles: extractions.length, matches: matches.length, suggestions: suggestions.length, letters: letters.length },
+        "tâches remises en file",
+      );
     }
   });
   for (const { queue, cron } of SCHEDULES) await boss.schedule(queue, cron);

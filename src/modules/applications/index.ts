@@ -1,10 +1,18 @@
 export * from "./rules";
+export { guardLetter, letterText, type LetterParagraph, type LetterProposal } from "./letter";
 export {
+  acceptLetterProposal,
   addContact,
   checkCoverLetter,
   companyOverview,
   coverLetterFile,
   deleteContact,
+  discardLetterProposal,
+  draftLetter,
+  findStalledLetters,
+  requestLetterDraft,
+  type LetterOutcome,
+  type LetterRequestDeps,
   saveCoverLetter,
   CHANNELS,
   confirmSend,

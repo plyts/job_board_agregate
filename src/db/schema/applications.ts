@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, date, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import type { LetterProposal } from "@/modules/applications/letter";
 import { cvVersions } from "./cv";
 import { users } from "./identity";
 import { jobOffers } from "./offers";
@@ -22,6 +23,7 @@ export const applicationStatus = pgEnum("application_status", [
 
 export const applicationEventType = pgEnum("application_event_type", ["created", "status_changed", "sent", "next_action_set"]);
 export const applicationDocumentKind = pgEnum("application_document_kind", ["cv", "cover_letter"]);
+export const letterDraftStatus = pgEnum("letter_draft_status", ["none", "queued", "running", "done", "failed"]);
 
 /**
  * Candidature : suivi d'une offre jusqu'à la réponse. Une seule candidature active par offre ;
@@ -52,6 +54,10 @@ export const applications = pgTable(
     notes: text("notes").notNull().default(""),
     /** Lettre de motivation (brouillon) ; la version envoyée est figée dans `application_documents`. */
     coverLetter: text("cover_letter").notNull().default(""),
+    /** Proposition de lettre par l'IA (letter.draft) : état, raison affichée, paragraphes sourcés et contrôlés. */
+    letterStatus: letterDraftStatus("letter_status").notNull().default("none"),
+    letterReason: text("letter_reason"),
+    letterProposal: jsonb("letter_proposal").$type<LetterProposal>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ContactForm, DeleteContactButton, LetterForm, NextActionForm, NotesForm, SendForm, StatusForm } from "@/components/applications/ApplicationForms";
 import { EVENT_LABELS, STATUS_META } from "@/components/applications/labels";
+import { LetterProposalPanel } from "@/components/applications/LetterProposalPanel";
 import { Panel } from "@/components/ui/Panel";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -10,7 +11,9 @@ import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
 import { cn } from "@/lib/cn";
 import { CHANNELS, checkCoverLetter, CLOSED, getApplication, isOverdue, localDate, type ApplicationStatus, type Channel } from "@/modules/applications";
-import { getVersion } from "@/modules/profile";
+import { personalDataProviders } from "@/modules/privacy";
+import { getCurrentProfile, getVersion } from "@/modules/profile";
+import { evidenceElements } from "@/modules/profile/content";
 
 export const metadata: Metadata = { title: "Candidature" };
 
@@ -51,6 +54,10 @@ export default async function ApplicationPage(props: PageProps<"/candidatures/[i
   const today = localDate();
   const late = isOverdue(app.nextActionAt, today);
   const finalized = versions.filter((v) => v.status === "finalized");
+  const [providers, profile] = sentLetter ? [null, null] : await Promise.all([personalDataProviders(db, user.id), base ?? getCurrentProfile(db, user.id)]);
+  const sourceLabels = profile
+    ? Object.fromEntries([...evidenceElements(profile.content).map((e) => [e.id, e.label]), ...profile.content.skills.map((k) => [k.id, `Compétence ${k.name}`])])
+    : {};
 
   return (
     <>
@@ -186,6 +193,17 @@ export default async function ApplicationPage(props: PageProps<"/candidatures/[i
               ) : (
                 <p className="text-sm text-accent">✓ Chaque chiffre et chaque mot-clé de l&apos;offre de la lettre a sa source dans le profil maître.</p>
               )
+            ) : null}
+            {!sentLetter ? (
+              <LetterProposalPanel
+                id={app.id}
+                status={app.letterStatus}
+                reason={app.letterReason}
+                proposal={app.letterProposal}
+                aiAvailable={(providers?.usable.length ?? 0) > 0}
+                hasLetter={Boolean(app.coverLetter.trim())}
+                labels={sourceLabels}
+              />
             ) : null}
             <LetterForm key={app.coverLetter} id={app.id} text={app.coverLetter} />
             {app.coverLetter.trim() ? (

@@ -67,7 +67,8 @@ Chaque module expose une API TypeScript (`src/modules/<nom>/index.ts`) ; les aut
 | `offer.analyze` | Offre nouvelle | Clé = `sha256(texte normalisé) + version du schéma + version du prompt` ; résultat en cache | 3 essais, temporisation 30 s / 2 min / 10 min, puis « échec » visible |
 | `profile.extract` | Import de CV | Clé = empreinte du fichier | idem |
 | `match.compute` | Matching demandé, ou recontrôle d'une version de CV (`cv_version_id`) | Clé = matching | idem |
-| `cv.suggest` | Demande de suggestions dans l'éditeur | Clé = brouillon | idem ; sans fournisseur autorisé pour le CV, échec immédiat et message clair (l'éditeur reste utilisable à la main) |
+| `cv.suggest` | Demande de suggestions dans l'éditeur | Clé = brouillon | idem ; sans fournisseur autorisé et consenti pour le CV, échec immédiat et message clair (l'éditeur reste utilisable à la main) |
+| `letter.draft` | « Proposer une lettre » sur la fiche candidature | Clé = candidature | idem ; proposition sourcée, passée au contrôle des faits de la lettre, reprise seulement par l'utilisateur ; sans fournisseur consenti, échec immédiat (la lettre se rédige à la main) |
 | *(pg-boss)* expiration | Continu | — | Une tâche active au-delà de `expireInSeconds` est reprise ou marquée en échec par pg-boss : pas de watchdog maison |
 | `reminders.due` | Tous les matins | — | — |
 

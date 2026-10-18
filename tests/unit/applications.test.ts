@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { addDays, ALREADY_SENT, initialStatus, isOverdue, localDate, moveRefusal, SEND_REQUIRED } from "@/modules/applications/rules";
+import { guardLetter, letterText } from "@/modules/applications/letter";
 import { sniffDocument } from "@/modules/applications/service";
+import { toProfileContent } from "@/modules/profile/extract";
+import { CV_EXTRACTION, CV_TEXT } from "../helpers/fixtures";
 
 describe("règles des candidatures", () => {
   it("n'atteint « Envoyée » et la suite qu'après confirmation d'envoi", () => {
@@ -34,5 +37,32 @@ describe("règles des candidatures", () => {
     expect(sniffDocument(Buffer.from("%PDF-1.7\n"))?.extension).toBe("pdf");
     expect(sniffDocument(Buffer.from("PK\u0003\u0004rest", "latin1"))?.extension).toBe("docx");
     expect(sniffDocument(Buffer.from("<html>"))).toBeNull();
+  });
+});
+
+describe("proposition de lettre", () => {
+  const { content: profile } = toProfileContent(CV_EXTRACTION, CV_TEXT, { email: null, phone: null });
+  const item = profile.experiences[0]!.items[0]!.id;
+
+  it("écarte un paragraphe de fond sans source, signale une donnée masquée et ne reprend que les paragraphes sans signalement", () => {
+    const { paragraphs, dropped } = guardLetter(
+      {
+        paragraphs: [
+          { kind: "opening", text: "  Votre plateforme de données m'intéresse.  ", sourceIds: [], covers: [] },
+          { kind: "body", text: "Je suis motivé.", sourceIds: ["absent"], covers: [] },
+          { kind: "body", text: "Chez Lumio, 30 pipelines Python/SQL orchestrés par Airflow.", sourceIds: [item], covers: ["Python et SQL"] },
+          { kind: "closing", text: "Écrivez-moi à [E-MAIL]. [CANDIDAT]", sourceIds: [], covers: [] },
+        ],
+      },
+      profile,
+      [],
+      "Camille Martin",
+    );
+    expect(dropped).toBe(1);
+    expect(paragraphs.map((p) => p.issues.length)).toEqual([0, 0, 1]);
+    expect(paragraphs[2]).toMatchObject({ text: "Écrivez-moi à [E-MAIL]. Camille Martin", issues: ["contient une donnée masquée (adresse e-mail)."] });
+    expect(letterText({ paragraphs, dropped, promptVersion: "v", llmCallId: "c", createdAt: "" })).toBe(
+      "Votre plateforme de données m'intéresse.\n\nChez Lumio, 30 pipelines Python/SQL orchestrés par Airflow.",
+    );
   });
 });

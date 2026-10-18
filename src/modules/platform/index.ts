@@ -9,6 +9,7 @@ export {
   QUEUES,
   SCHEDULES,
   suggestJobOptions,
+  letterJobOptions,
   transactionDb,
   type QueueName,
 } from "./queue";
