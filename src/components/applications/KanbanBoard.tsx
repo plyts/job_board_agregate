@@ -39,7 +39,10 @@ export function KanbanBoard({ cards }: { cards: CardView[] }) {
   const [dragOver, setDragOver] = useState<ApplicationStatus | null>(null);
   const [, startTransition] = useTransition();
   const board = useRef<HTMLDivElement>(null);
+  // Déplacements d'une même carte envoyés l'un après l'autre, dans l'ordre des gestes.
+  const queues = useRef<Record<string, Promise<void>>>({});
 
+  // État optimiste : la colonne demandée l'emporte jusqu'à ce que le serveur la confirme ou la refuse.
   const view = cards.map((c) => ({ ...c, status: overrides[c.id] ?? c.status }));
 
   useEffect(() => {
@@ -56,18 +59,28 @@ export function KanbanBoard({ cards }: { cards: CardView[] }) {
       return;
     }
     setAlert(null);
-    setOverrides((o) => ({ ...o, [card.id]: to }));
-    setAnnounce(`« ${card.title} » déplacée vers ${STATUS_META[to].label}.`);
-    startTransition(async () => {
-      const r = await moveApplicationAction({ id: card.id, to });
-      if (r.error) setAlert(r.error);
-      // Succès ou échec, l'état serveur fait foi.
-      setOverrides((o) => {
-        const next = { ...o };
-        delete next[card.id];
-        return next;
-      });
+    setOverrides((o) => {
+      // Les colonnes déjà confirmées par le serveur n'ont plus besoin d'état optimiste.
+      const next = Object.fromEntries(Object.entries(o).filter(([id, s]) => cards.find((c) => c.id === id)?.status !== s));
+      return { ...next, [card.id]: to };
     });
+    const previous = queues.current[card.id] ?? Promise.resolve();
+    const run = previous.then(async () => {
+      const r = await moveApplicationAction({ id: card.id, to });
+      if (r.error) {
+        setAlert(r.error);
+        // Refus du serveur : la carte reprend la colonne enregistrée.
+        setOverrides((o) => {
+          const next = { ...o };
+          if (next[card.id] === to) delete next[card.id];
+          return next;
+        });
+      } else {
+        setAnnounce(`« ${card.title} » déplacée vers ${STATUS_META[to].label}.`);
+      }
+    });
+    queues.current[card.id] = run;
+    startTransition(() => run);
   };
 
   const onKey = (e: React.KeyboardEvent, card: CardView) => {

@@ -24,7 +24,11 @@ test("suivre une candidature : Kanban au clavier, envoi confirmé avec fichier f
   await page.keyboard.press("ArrowLeft");
   await expect(page.getByRole("region", { name: "CV à adapter" }).getByRole("listitem", { name: pattern })).toBeVisible();
   await expect(card).toBeFocused();
+  // Second geste sans attendre la confirmation du premier : les deux sont appliqués dans l'ordre.
   await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("region", { name: "Prête à envoyer" }).getByRole("listitem", { name: pattern })).toBeVisible();
+  await expect(page.getByText(/déplacée vers Prête à envoyer\./)).toBeAttached();
+  await page.reload();
   await expect(page.getByRole("region", { name: "Prête à envoyer" }).getByRole("listitem", { name: pattern })).toBeVisible();
 
   // Fiche : confirmation d'envoi explicite, fichier figé et haché.
