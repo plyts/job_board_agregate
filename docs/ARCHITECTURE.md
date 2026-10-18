@@ -51,11 +51,11 @@ Chaque module expose une API TypeScript (`src/modules/<nom>/index.ts`) ; les aut
 | `identity` | Auth, sessions, consentements | `users`, `sessions`, `consents` |
 | `profile` | Import du CV, extraction, versions du profil maître, compétences et preuves | `candidate_profiles`, `profile_versions`, `experiences`, `skills`, `skill_evidence` |
 | `offers` | Import, normalisation, dédoublonnage, entreprises | `job_offers`, `companies`, `job_sources`, `sync_runs` |
-| `analysis` | Extraction structurée des offres | `job_requirements`, `offer_analyses` |
+| `analysis` | Extraction structurée des offres, décision qualifier / écarter | `job_requirements`, `offer_analyses`, `offer_events` |
 | `matching` | Évaluation par exigence, score | `match_analyses`, `match_items` |
 | `cv` | Versions personnalisées, suggestions, diff, export, recontrôle | `cv_versions`, `cv_suggestions` |
 | `applications` | Candidatures, confirmation d'envoi, document envoyé figé, événements, relances (prochaine action datée), Kanban | `applications`, `application_documents`, `application_events` |
-| `metrics` | Agrégats du tableau de bord à partir des événements | vues SQL |
+| `metrics` | Tableau de bord recalculé à chaque affichage à partir de lignes datées (aucun compteur stocké) | lecture seule ; `offer_events` (décisions datées, écrit par `analysis`) |
 | `connectors` | Interface commune des sources (V2) | `job_sources`, `sync_runs` |
 | `platform` | LLM, stockage, file, logs, budget | `llm_calls`, `pgboss.*` |
 

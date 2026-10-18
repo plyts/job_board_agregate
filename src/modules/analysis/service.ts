@@ -1,7 +1,7 @@
-import { and, asc, eq, inArray, lt } from "drizzle-orm";
+import { and, asc, eq, inArray, lt, sql } from "drizzle-orm";
 import type { Pool } from "pg";
 import type { Db } from "@/db/client";
-import { jobOffers, jobRequirements, llmCalls, offerAnalyses, requirementCorrections } from "@/db/schema";
+import { jobOffers, jobRequirements, llmCalls, offerAnalyses, offerEvents, requirementCorrections } from "@/db/schema";
 import { withTransaction } from "@/db/transaction";
 import { provisionalTitle, upsertCompany } from "@/modules/offers";
 import { generateJournaled } from "@/modules/platform/llm/journal";
@@ -192,13 +192,18 @@ export async function correctRequirement(db: Db, userId: string, requirementId: 
 }
 
 /** Décision de l'utilisateur sur une offre analysée. */
+/** Qualifie ou écarte une offre analysée ; la décision est datée dans `offer_events` par la même instruction SQL. */
 export async function decideOffer(db: Db, userId: string, offerId: string, decision: "qualify" | "discard"): Promise<boolean> {
-  const rows = await db
-    .update(jobOffers)
-    .set({ status: decision === "qualify" ? "qualified" : "discarded", updatedAt: new Date() })
-    .where(and(eq(jobOffers.id, offerId), eq(jobOffers.userId, userId), inArray(jobOffers.status, [...DONE])))
-    .returning({ id: jobOffers.id });
-  return rows.length === 1;
+  const status = decision === "qualify" ? "qualified" : "discarded";
+  const result = await db.execute<{ id: string }>(sql`
+    with decided as (
+      update ${jobOffers} set status = ${status}, updated_at = now()
+      where ${jobOffers.id} = ${offerId} and ${jobOffers.userId} = ${userId} and ${inArray(jobOffers.status, [...DONE])}
+      returning id, user_id
+    )
+    insert into ${offerEvents} (user_id, offer_id, type) select user_id, id, ${status}::offer_event_type from decided
+    returning offer_id as id`);
+  return result.rows.length === 1;
 }
 
 /** Relance manuelle d'une analyse en échec : l'offre repasse en file. */

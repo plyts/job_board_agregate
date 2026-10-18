@@ -92,6 +92,20 @@
       "when": 1792341958200,
       "tag": "0012_applications-immutability",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792342767614,
+      "tag": "0013_offer-events",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792342769000,
+      "tag": "0014_offer-events-append-only",
+      "breakpoints": true
     }
   ]
 }

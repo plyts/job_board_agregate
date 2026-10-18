@@ -68,3 +68,22 @@ export const offerImports = pgTable(
   },
   (t) => [index("offer_imports_user_created_idx").on(t.userId, t.createdAt)],
 );
+
+export const offerEventType = pgEnum("offer_event_type", ["qualified", "discarded"]);
+
+/** Décisions sur une offre, datées et append-only (trigger) : base des métriques « qualifiées » et « traitées ». */
+export const offerEvents = pgTable(
+  "offer_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    offerId: uuid("offer_id")
+      .notNull()
+      .references(() => jobOffers.id, { onDelete: "cascade" }),
+    type: offerEventType("type").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("offer_events_user_time_idx").on(t.userId, t.occurredAt)],
+);

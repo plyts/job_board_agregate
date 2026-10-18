@@ -40,6 +40,7 @@ llm_calls (journal de tous les appels IA)
 | `companies` | `name`, `normalized_name` | Unique `(user_id, normalized_name)` ; suffixes juridiques ignorés (SAS, SARL…) |
 | `job_requirements` | `offer_id`, `analysis_id`, `kind` (mission, hard_skill, soft_skill, tech, years, seniority, degree, cert, language, contract, location, remote, availability, salary, clearance), `importance` (mandatory, preferred, condition), `value jsonb`, `provenance` (explicit, inferred, uncertain), `quote`, `quote_start`, `quote_end` | `provenance = explicit` ⇒ `quote` présente dans le texte source |
 | `offer_analyses` | `offer_id`, `schema_version`, `prompt_version`, `model`, `llm_call_id`, `status` | Une seule analyse `current` par offre |
+| `offer_events` | `offer_id`, `type` (qualified, discarded), `occurred_at` | Append-only (trigger) ; écrit par la même instruction SQL que la décision ; base des métriques « qualifiées » et « traitées » ; reprise de l'existant à la migration (datée de la dernière mise à jour de l'offre) |
 | `match_analyses` | `offer_id`, `offer_analysis_id`, `profile_version_id`, `cv_version_id null`, `state` (current, superseded), `status` (pending, done, failed), `mode` (model, rules_only), `weights jsonb`, `score`, `factors jsonb`, `llm_call_id` | Un seul matching courant par offre ; changer les poids recalcule le score sans appel IA |
 | `match_items` | `match_id`, `requirement_id`, `kind` et `importance` figés, `category` (confirmed, partial, to_confirm, not_demonstrated, potential_incompatibility, not_applicable), `evidence jsonb` [{id, label, text}], `rationale`, `action`, `source` (rule, model, guard) | `category ∈ {confirmed, partial}` ⇒ `evidence` non vide (garde-fou serveur) |
 | `cv_versions` | `offer_id`, `base_profile_version_id`, `version int`, `status` (draft, saved, finalized), `content jsonb` (sélection ordonnée d'éléments du profil, identifiants sources), `revision`, `suggest_status`, `finalized_at` | Un seul brouillon par offre (unique partielle) ; `(offer_id, version)` unique ; `saved` et `finalized` immuables (trigger), seul le passage `saved → finalized` à contenu identique est permis |
@@ -61,7 +62,11 @@ llm_calls (journal de tous les appels IA)
 
 ## État réel des tables
 
-Créées à ce jour (migrations `drizzle/0000` à `0012`) : `users`, `sessions`, `login_attempts`, `llm_calls`, `companies`, `job_offers`, `offer_imports`, `offer_analyses`, `job_requirements`, `requirement_corrections`, `profile_versions`, `match_analyses` (avec `cv_version_id` pour les recontrôles), `match_items`, `cv_versions`, `cv_suggestions`, `applications`, `application_documents`, `application_events`. Pas de tables `reminders` ni `contacts` : la relance est la prochaine action datée de la candidature (proposée à l'envoi selon `follow_up_days`), les contacts vont dans les notes. Les autres tables de ce document restent à créer avec leur module.
+Créées à ce jour (migrations `drizzle/0000` à `0014`) : `users`, `sessions`, `login_attempts`, `llm_calls`, `companies`, `job_offers`, `offer_imports`, `offer_analyses`, `job_requirements`, `requirement_corrections`, `profile_versions`, `match_analyses` (avec `cv_version_id` pour les recontrôles), `match_items`, `cv_versions`, `cv_suggestions`, `applications`, `application_documents`, `application_events`, `offer_events`. Pas de tables `reminders` ni `contacts` : la relance est la prochaine action datée de la candidature (proposée à l'envoi selon `follow_up_days`), les contacts vont dans les notes. Les autres tables de ce document restent à créer avec leur module.
+
+## Métriques (tableau de bord)
+
+Aucun compteur stocké : chaque chiffre est une requête sur des lignes datées, bornée par jour dans le fuseau `APP_TIME_ZONE` (Europe/Paris par défaut). Collectées et nouvelles : `offer_imports` ; analysées : `offer_analyses` ; qualifiées et traitées : `offer_events` ; CV adaptés : `cv_versions.finalized_at` ; préparées, envoyées, entretiens, refus : `application_events` ; relances en retard : `applications.next_action_at` antérieure à aujourd'hui (état courant). Un test d'intégration compare chaque valeur à un recalcul SQL indépendant.
 
 ## Migrations
 
