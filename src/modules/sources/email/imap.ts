@@ -1,7 +1,7 @@
 import { lookup } from "node:dns/promises";
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
-import { isPublicAddress } from "@/modules/offers/fetch/safe-fetch";
+import { guardedLookup, isPublicAddress } from "@/modules/offers/fetch/safe-fetch";
 import { SourceError } from "../types";
 import type { AlertMessage } from "./parse";
 
@@ -39,6 +39,8 @@ function client(settings: ImapSettings, password: string, options: ImapOptions):
     // Sans TLS direct, STARTTLS est exigé : le mot de passe ne circule jamais en clair.
     doSTARTTLS: settings.secure || options.allowPlaintext ? undefined : true,
     auth: { user: settings.user, pass: password },
+    // Adresse revérifiée à la connexion : `checkHost` seul laisserait passer un DNS qui change entre-temps (rebinding).
+    tls: options.allowPrivateHost ? undefined : { lookup: guardedLookup(isPublicAddress, () => new SourceError("Hôte IMAP refusé : adresse interne", "invalid")) as never },
     logger: false,
     disableAutoIdle: true,
     connectionTimeout: 15_000,

@@ -1,3 +1,3 @@
 export { getOffer, importOffer, listOffers, upsertCompany, OFFER_ORIGINS, OFFER_STATUSES, type ImportResult, type OfferDeps, type OfferListItem, type OfferOrigin, type OfferStatus } from "./service";
 export { canonicalUrl, contentHash, provisionalTitle } from "./normalize";
-export { completeOfferText, dedupKey, fetchOfferText, ingestOffer, type CompleteResult, type ConnectedOrigin, type IncomingOffer, type IngestOutcome } from "./ingest";
+export { cityOf, completeOfferText, dedupKey, fetchOfferText, ingestOffer, knownOfferId, type CompleteResult, type ConnectedOrigin, type IncomingOffer, type IngestOptions, type IngestOutcome } from "./ingest";

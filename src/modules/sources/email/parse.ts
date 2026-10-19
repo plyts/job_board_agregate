@@ -91,8 +91,12 @@ export type Resolver = (url: string) => Promise<string>;
 /** Liens de pied de message : jamais suivis. */
 const FOOTER = /désabonn|desabonn|unsubscribe|gérer|gerer|préférences|preferences|confidentialit|privacy|aide|help|paramètres|settings/i;
 
-/** Un lien n'est suivi que s'il passe par le jobboard lui-même ou par un routeur d'e-mails connu. */
+/**
+ * Un lien n'est suivi que s'il passe par le jobboard lui-même ou par un routeur d'e-mails connu.
+ * Jamais pour LinkedIn et Indeed (`noFetch`) : même une redirection de suivi les contacterait, ou compterait un clic pour eux.
+ */
 function shouldResolve(board: Board, link: Link): boolean {
+  if (board.noFetch) return false;
   const host = hostOf(link.href);
   if (!host || FOOTER.test(link.label) || FOOTER.test(link.href)) return false;
   return Boolean(board.tracking?.test(host) || EMAIL_TRACKERS.test(host) || board.senders.test(host));

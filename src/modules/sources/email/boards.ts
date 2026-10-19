@@ -27,7 +27,6 @@ export const BOARDS: Board[] = [
     senders: /(^|\.)linkedin\.com$/i,
     offer: /linkedin\.com\/(?:comm\/)?jobs\/view\/(?:[^/?#]*-)?(\d{6,})/i,
     canonical: (m) => ({ id: m[1]!, url: `https://www.linkedin.com/jobs/view/${m[1]}` }),
-    tracking: /(^|\.)(lnkd\.in|linkedin\.com)$/i,
     noFetch: true,
   },
   {
@@ -36,7 +35,6 @@ export const BOARDS: Board[] = [
     senders: /(^|\.)indeed\.(com|fr)$/i,
     offer: /indeed\.(?:com|fr)\/[^\s"'<>]*?[?&](?:jk|vjk)=([0-9a-f]{16})/i,
     canonical: (m) => ({ id: m[1]!.toLowerCase(), url: `https://fr.indeed.com/viewjob?jk=${m[1]!.toLowerCase()}` }),
-    tracking: /(^|\.)indeed\.(com|fr)$/i,
     noFetch: true,
   },
   {

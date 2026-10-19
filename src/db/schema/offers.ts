@@ -42,6 +42,8 @@ export const jobOffers = pgTable(
     publishedAt: timestamp("published_at", { withTimezone: true }),
     /** Intitulé, entreprise et ville normalisés : rapproche une même annonce vue sur plusieurs jobboards. */
     dedupKey: text("dedup_key"),
+    /** Autres URL canoniques de la même annonce (partenaires de diffusion indiqués par France Travail) : dédoublonnage dans les deux sens. */
+    relatedUrls: text("related_urls").array().notNull().default(sql`'{}'::text[]`),
     lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }).notNull().defaultNow(),
     status: offerStatus("status").notNull().default("queued"),
     statusReason: text("status_reason"),
@@ -53,6 +55,7 @@ export const jobOffers = pgTable(
     uniqueIndex("job_offers_user_canonical_url_unique").on(t.userId, t.canonicalUrl).where(sql`${t.canonicalUrl} is not null`),
     index("job_offers_user_created_idx").on(t.userId, t.createdAt),
     index("job_offers_user_dedup_idx").on(t.userId, t.dedupKey),
+    index("job_offers_related_urls_idx").using("gin", t.relatedUrls),
   ],
 );
 

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { dedupKey } from "@/modules/offers/ingest";
+import { fetchJobPage } from "@/modules/offers/fetch/safe-fetch";
+import { cityOf, dedupKey } from "@/modules/offers/ingest";
 import { decryptSecret, encryptSecret } from "@/modules/platform/secrets";
 import { normalizeAdzuna } from "@/modules/sources/connectors/adzuna";
-import { careerPageUrl, detectCareerPage, matchesQuery, normalizeGreenhouse, normalizeLever } from "@/modules/sources/connectors/career-pages";
-import { departementCode } from "@/modules/sources/connectors/departements";
-import { normalizeFranceTravail, searchParams } from "@/modules/sources/connectors/france-travail";
+import { careerPageUrl, detectCareerPage, locationMatches, matchesQuery, normalizeGreenhouse, normalizeLever } from "@/modules/sources/connectors/career-pages";
+import { departementCode, departementOfPostalCode } from "@/modules/sources/connectors/departements";
+import { normalizeFranceTravail, searchParams, type Places } from "@/modules/sources/connectors/france-travail";
+import { keywordGroups, searchEachGroup } from "@/modules/sources/connectors/keywords";
 import { BOARDS, boardForSender, matchOffer } from "@/modules/sources/email/boards";
 import { extractOffers } from "@/modules/sources/email/parse";
 import { mergeResults } from "@/modules/sources/service";
@@ -51,15 +53,34 @@ describe("France Travail", () => {
     expect(normalizeFranceTravail({ id: "x" })).toBeNull();
   });
 
-  it("traduit les critères : mots-clés, département ou commune, contrats, fraîcheur", async () => {
-    const p = await searchParams({ keywords: "data engineer, python", location: "Rhône", radiusKm: 20, contracts: ["CDI", "ALT"], publishedWithinDays: 5, limit: 150 }, async () => null);
-    expect(Object.fromEntries(p)).toEqual({ sort: "1", motsCles: "data engineer,python", departement: "69", typeContrat: "CDI", natureContrat: "E2,FS", publieeDepuis: "7" });
-    const city = await searchParams({ ...query, location: "Lyon", radiusKm: 10 }, async (name) => (name === "Lyon" ? "69123" : null));
+  it("traduit les critères : mots-clés, département, commune ou code postal, contrats, fraîcheur", async () => {
+    const none: Places = { byName: async () => null, byPostalCode: async () => null, isCommuneCode: async () => false };
+    const p = await searchParams({ keywords: "data engineer", location: "Rhône", radiusKm: 20, contracts: ["CDI", "ALT"], publishedWithinDays: 5, limit: 150 }, none);
+    expect(Object.fromEntries(p)).toEqual({ sort: "1", motsCles: "data,engineer", departement: "69", typeContrat: "CDI", natureContrat: "E2,FS", publieeDepuis: "7" });
+    const city = await searchParams({ ...query, location: "Lyon", radiusKm: 10 }, { ...none, byName: async (name) => (name === "Lyon" ? "69123" : null) });
     expect(city.get("commune")).toBe("69123");
     expect(city.get("distance")).toBe("10");
-    await expect(searchParams({ ...query, location: "Atlantide" }, async () => null)).rejects.toThrow(/ne connaît pas le lieu/);
+    await expect(searchParams({ ...query, location: "Atlantide" }, none)).rejects.toThrow(/ne connaît pas le lieu/);
+    // Un code postal n'est jamais pris pour un code INSEE : 13001 (Marseille 1er) n'est pas Aix-en-Provence (INSEE 13001).
+    const postal = await searchParams({ ...query, location: "13001" }, { ...none, byPostalCode: async (cp) => (cp === "13001" ? "13201" : null), isCommuneCode: async () => true });
+    expect(postal.get("commune")).toBe("13201");
+    const unknownPostal = await searchParams({ ...query, location: "75011" }, none);
+    expect([unknownPostal.get("commune"), unknownPostal.get("departement")]).toEqual([null, "75"]);
     expect(departementCode("rhone")).toBe("69");
     expect(departementCode("2a")).toBe("2A");
+    expect([departementOfPostalCode("97400"), departementOfPostalCode("20090"), departementOfPostalCode("20200")]).toEqual(["974", "2A", "2B"]);
+  });
+
+  it("cherche chaque variante séparément et réunit les résultats (« ou »)", async () => {
+    const calls: [string, number][] = [];
+    const res = await searchEachGroup({ ...query, keywords: "data engineer, ingénieur données,  data engineer ", limit: 10 }, async (keywords, limit) => {
+      calls.push([keywords, limit]);
+      const offer = (id: string) => ({ origin: "adzuna" as const, board: "adzuna", externalId: id, url: null, title: id, company: null, location: null, publishedAt: null, text: id, complete: false });
+      return { offers: keywords === "data engineer" ? [offer("a"), offer("b")] : [offer("b"), offer("c")], total: 2 };
+    });
+    expect(calls).toEqual([["data engineer", 5], ["ingénieur données", 5]]);
+    expect(res.offers.map((o) => o.externalId)).toEqual(["a", "b", "c"]);
+    expect(keywordGroups("a, bi, cc, dd, ee, ff, gg")).toEqual(["bi", "cc", "dd", "ee", "ff"]);
   });
 });
 
@@ -162,5 +183,51 @@ describe("dédoublonnage entre sources", () => {
     expect(merged[0]!.boards).toEqual(["france_travail", "adzuna", "greenhouse"]);
     expect(merged[0]!.others.map((o) => o.board)).toEqual(["adzuna", "greenhouse"]);
     expect(merged[0]!.offer).toMatchObject({ board: "france_travail", complete: true });
+  });
+});
+
+describe("défauts corrigés (relecture du 19/10/2026)", () => {
+  const base = { origin: "france_travail" as const, board: "france_travail", publishedAt: new Date("2026-10-17"), relatedUrls: [], text: "x", complete: true };
+
+  it("garde distinctes les villes à tiret et rapproche les écritures d'une même ville", () => {
+    expect(cityOf("Saint-Denis")).not.toBe(cityOf("Saint-Malo"));
+    expect(dedupKey("Ingénieur DevOps H/F", "Orange", "Saint-Denis")).not.toBe(dedupKey("Ingénieur DevOps H/F", "Orange", "Saint-Malo"));
+    expect(cityOf("Aix-en-Provence")).toBe("aix en provence");
+    expect(cityOf("Saint-Étienne (42)")).toBe(cityOf("Saint Etienne"));
+    expect(["Lyon 03 (69)", "69003 Lyon", "Lyon, France", "Lyon 3e", "LYON"].map(cityOf)).toEqual(["lyon", "lyon", "lyon", "lyon", "lyon"]);
+    expect(cityOf("Nordwave - Lyon")).toBe("nordwave");
+    expect(dedupKey("Ingénieur données", "Nordwave", "Lyon")).toBe(dedupKey("Ingenieur donnees", "Nordwave", "LYON 03 (69)"));
+  });
+
+  it("ne fusionne pas deux annonces d'un même site aux identifiants différents (intérim, postes multiples)", () => {
+    const offer = (externalId: string, board = "france_travail") => ({ ...base, board, externalId, url: `https://exemple.fr/${board}/${externalId}`, title: "Préparateur de commandes H/F", company: "Adecco", location: "Lyon" });
+    const merged = mergeResults([offer("M1"), offer("M2"), offer("A9", "adzuna")]);
+    expect(merged.map((m) => m.boards.join("+"))).toEqual(["france_travail+adzuna", "france_travail"]);
+  });
+
+  it("filtre une page carrières par ville, code postal ou département (nom, code, préfecture)", () => {
+    expect(locationMatches("Lyon, France", "Lyon")).toBe(true);
+    expect(locationMatches("Lyon, France", "69")).toBe(true);
+    expect(locationMatches("Lyon, France", "Rhône")).toBe(true);
+    expect(locationMatches("Lyon 3e", "69003")).toBe(true);
+    expect(locationMatches("Paris", "69")).toBe(false);
+    expect(locationMatches("Varces", "Var")).toBe(false);
+    expect(locationMatches("Toulon", "Var")).toBe(true);
+    expect(locationMatches("Villeurbanne (69)", "Rhône")).toBe(true);
+  });
+
+  it("ne suit aucun lien d'une alerte LinkedIn ou Indeed, même un lien court lnkd.in", async () => {
+    const html = `<a href="https://lnkd.in/abc123">Data Engineer</a><br>Nordwave<br>Lyon
+      <a href="https://www.linkedin.com/comm/jobs/view/4012345678/?trackingId=x">Analytics Engineer</a><br>Lumio<br>Paris`;
+    const offers = await extractOffers(board("linkedin"), { from: "jobs-noreply@linkedin.com", date: null, html, text: null }, async () => {
+      throw new Error("aucun appel attendu");
+    });
+    expect(offers.map((o) => o.externalId)).toEqual(["4012345678"]);
+    const indeed = await extractOffers(board("indeed"), { from: "alert@indeed.com", date: null, html: `<a href="https://cts.indeed.com/v3/abc">Data Engineer</a>`, text: null }, async () => {
+      throw new Error("aucun appel attendu");
+    });
+    expect(indeed).toEqual([]);
+    // Le raccourcisseur de LinkedIn est un domaine exclu comme linkedin.com : jamais contacté.
+    await expect(fetchJobPage("https://lnkd.in/abc123")).rejects.toMatchObject({ reason: "blocked_domain" });
   });
 });

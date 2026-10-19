@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import type { Db } from "@/db/client";
-import { jobOffers, jobSources, offerSightings, savedSearches, syncRuns, type SearchResultItem, type StoredOffer } from "@/db/schema";
-import { canonicalUrl, dedupKey, fetchOfferText, ingestOffer, type IncomingOffer, type IngestOutcome, type OfferDeps } from "@/modules/offers";
+import { jobSources, offerSightings, savedSearches, syncRuns, type SearchResultItem, type StoredOffer } from "@/db/schema";
+import { canonicalUrl, dedupKey, fetchOfferText, ingestOffer, knownOfferId, type IncomingOffer, type IngestOutcome, type OfferDeps } from "@/modules/offers";
 import { resolveRedirect } from "@/modules/offers/fetch/safe-fetch";
 import { decryptSecret, encryptSecret } from "@/modules/platform/secrets";
 import { adzunaConnector, ADZUNA } from "./connectors/adzuna";
@@ -27,6 +27,8 @@ export type SourceEndpoints = {
 export type SourcesDeps = OfferDeps & {
   endpoints?: SourceEndpoints;
   imap?: ImapOptions;
+  /** En test : durée de traitement d'un relevé de boîte avant report au passage suivant. */
+  mailboxBudgetMs?: number;
   /** Résolution des liens de suivi des alertes (réseau) ; remplaçable en test. */
   resolve?: Resolver;
 };
@@ -197,17 +199,19 @@ export type MergedOffer = { offer: IncomingOffer; boards: string[]; others: Inco
  * L'offre retenue est celle au texte complet ; les autres sont gardées pour noter où l'offre a aussi été vue.
  */
 export function mergeResults(offers: IncomingOffer[]): MergedOffer[] {
-  const groups: { members: IncomingOffer[]; keys: Set<string> }[] = [];
+  const groups: { members: IncomingOffer[]; urls: Set<string>; keys: Set<string> }[] = [];
+  // Deux identifiants différents sur un même site sont deux annonces, même avec le même intitulé (intérim, postes multiples).
+  const conflicts = (g: { members: IncomingOffer[] }, o: IncomingOffer) =>
+    Boolean(o.externalId) && g.members.some((m) => m.board === o.board && m.externalId && m.externalId !== o.externalId);
   for (const o of offers) {
-    const keys = new Set<string>(
-      [o.url, ...(o.relatedUrls ?? [])].map((u) => (u ? canonicalUrl(u) : null)).filter((k): k is string => Boolean(k)),
-    );
+    const urls = new Set<string>([o.url, ...(o.relatedUrls ?? [])].map((u) => (u ? canonicalUrl(u) : null)).filter((k): k is string => Boolean(k)));
     const dk = dedupKey(o.title, o.company, o.location);
-    if (dk) keys.add(`k:${dk}`);
-    const group = groups.find((g) => [...keys].some((k) => g.keys.has(k)));
-    if (!group) groups.push({ members: [o], keys });
+    const group =
+      groups.find((g) => [...urls].some((u) => g.urls.has(u))) ?? (dk ? groups.find((g) => g.keys.has(dk) && !conflicts(g, o)) : undefined);
+    if (!group) groups.push({ members: [o], urls, keys: new Set(dk ? [dk] : []) });
     else {
-      for (const k of keys) group.keys.add(k);
+      for (const u of urls) group.urls.add(u);
+      if (dk) group.keys.add(dk);
       group.members.push(o);
     }
   }
@@ -224,37 +228,17 @@ export function mergeResults(offers: IncomingOffer[]): MergedOffer[] {
 
 /** Note les autres sources où l'offre importée a aussi été vue (doublons rattachés). */
 async function ingestOthers(deps: SourcesDeps, userId: string, others: IncomingOffer[], now: Date) {
-  for (const o of others) await ingestOffer(deps, userId, o, now).catch(() => null);
+  // Le texte de l'offre retenue suffit : les autres ne font que noter où l'annonce a été vue.
+  for (const o of others) await ingestOffer(deps, userId, o, now, { upgrade: false }).catch(() => null);
 }
 
-/** Offre déjà connue de l'utilisateur (même identifiant sur la source, même URL, ou même intitulé + entreprise + ville). */
-async function knownOffers(db: Db, userId: string, items: { offer: IncomingOffer }[]): Promise<Map<number, string>> {
+/** Offres déjà connues de l'utilisateur, avec exactement la règle de rattachement de l'import (`knownOfferId`). */
+async function knownOffers(db: Db, userId: string, items: { offer: IncomingOffer }[], now = new Date()): Promise<Map<number, string>> {
   const out = new Map<number, string>();
-  if (!items.length) return out;
-  const externalIds = items.map((i) => i.offer.externalId).filter((x): x is string => Boolean(x));
-  const sightings = externalIds.length
-    ? await db
-        .select({ offerId: offerSightings.offerId, board: offerSightings.board, externalId: offerSightings.externalId })
-        .from(offerSightings)
-        .where(and(eq(offerSightings.userId, userId), inArray(offerSightings.externalId, externalIds)))
-    : [];
-  const urls = items.flatMap((i) => [i.offer.url, ...(i.offer.relatedUrls ?? [])].map((u) => (u ? canonicalUrl(u) : null)).filter((u): u is string => Boolean(u)));
-  const keys = items.map((i) => dedupKey(i.offer.title, i.offer.company, i.offer.location)).filter((k): k is string => Boolean(k));
-  const offers =
-    urls.length || keys.length
-      ? await db
-          .select({ id: jobOffers.id, canonicalUrl: jobOffers.canonicalUrl, dedupKey: jobOffers.dedupKey })
-          .from(jobOffers)
-          .where(and(eq(jobOffers.userId, userId), or(urls.length ? inArray(jobOffers.canonicalUrl, urls) : sql`false`, keys.length ? inArray(jobOffers.dedupKey, keys) : sql`false`)))
-      : [];
-  items.forEach((item, i) => {
-    const o = item.offer;
-    const seen = sightings.find((s) => s.board === o.board && s.externalId === o.externalId);
-    const itemUrls = [o.url, ...(o.relatedUrls ?? [])].map((u) => (u ? canonicalUrl(u) : null));
-    const key = dedupKey(o.title, o.company, o.location);
-    const match = seen?.offerId ?? offers.find((r) => (r.canonicalUrl && itemUrls.includes(r.canonicalUrl)) || (key && r.dedupKey === key))?.id;
-    if (match) out.set(i, match);
-  });
+  for (const [i, item] of items.entries()) {
+    const id = await knownOfferId(db, userId, item.offer, now);
+    if (id) out.set(i, id);
+  }
   return out;
 }
 
@@ -268,6 +252,10 @@ async function searchableSources(db: Db, userId: string, sourceIds: string[]): P
   return wanted.length ? rows.filter((r) => wanted.includes(r.id)) : rows;
 }
 
+// Une synchronisation ne touche à l'état que s'il n'a pas changé entre-temps : une pause faite pendant le relevé est conservée.
+const recovered = sql`case when ${jobSources.state} = 'error' then 'active'::source_state else ${jobSources.state} end`;
+const failedAuth = sql`case when ${jobSources.state} = 'active' then 'error'::source_state else ${jobSources.state} end`;
+
 export type SearchRunResult = { runId: string; items: SearchResultItem[]; errors: string[]; sources: number };
 
 async function searchAll(deps: SourcesDeps, userId: string, sources: JobSource[], query: SearchQuery) {
@@ -278,7 +266,7 @@ async function searchAll(deps: SourcesDeps, userId: string, sources: JobSource[]
         const connector = searchConnector(deps, userId, s);
         if (!connector) return [];
         const res = await connector.search(query);
-        await deps.db.update(jobSources).set({ lastSyncAt: new Date(), lastError: null, state: "active" }).where(eq(jobSources.id, s.id));
+        await deps.db.update(jobSources).set({ lastSyncAt: new Date(), lastError: null, state: recovered }).where(eq(jobSources.id, s.id));
         return res.offers;
       } catch (err) {
         const msg = `${s.label} : ${message(err)}`;
@@ -403,20 +391,19 @@ export async function runSavedSearch(deps: SourcesDeps, userId: string, searchId
   const merged = mergeResults(offers);
   const known = await knownOffers(deps.db, userId, merged);
   const summary: ImportSummary = { created: 0, duplicates: 0, incomplete: 0, skipped: 0 };
+  // Le plafond compte ce qui part réellement en analyse ou crée une offre : créations et offres complétées.
+  let used = 0;
   let deferred = 0;
   for (const [i, m] of merged.entries()) {
+    if (!known.has(i) && used >= search.maxPerRun) {
+      deferred++;
+      continue;
+    }
     try {
-      if (known.has(i)) {
-        // Déjà connue : on note seulement où elle a été revue.
-        await ingestOffer(deps, userId, m.offer, now);
-        await ingestOthers(deps, userId, m.others, now);
-        summary.duplicates++;
-      } else if (summary.created >= search.maxPerRun) {
-        deferred++;
-      } else {
-        tally(summary, await ingestOffer(deps, userId, m.offer, now));
-        await ingestOthers(deps, userId, m.others, now);
-      }
+      const outcome = await ingestOffer(deps, userId, m.offer, now, { upgrade: used < search.maxPerRun });
+      tally(summary, outcome);
+      if (outcome.kind === "created" || (outcome.kind !== "skipped" && outcome.upgraded)) used++;
+      await ingestOthers(deps, userId, m.others, now);
     } catch {
       summary.skipped++;
     }
@@ -443,6 +430,8 @@ export async function runSavedSearch(deps: SourcesDeps, userId: string, searchId
 // Alertes e-mail
 
 const MAX_FETCH_PER_SYNC = 10;
+/** Temps de traitement d'un relevé, sous l'expiration de la tâche (10 min) : la suite attend le passage suivant. */
+const MAILBOX_BUDGET_MS = 6 * 60 * 1000;
 
 /**
  * Lit les nouvelles alertes de la boîte dédiée, en extrait les offres et les ajoute (à compléter).
@@ -455,6 +444,8 @@ export async function syncEmailAlerts(deps: SourcesDeps, userId: string, sourceI
   const [run] = await deps.db.insert(syncRuns).values({ userId, sourceId, trigger: "schedule" }).returning({ id: syncRuns.id });
   const config = source.config as unknown as ImapSettings & { autoFetch?: boolean };
   const errors: string[] = [];
+  // Informations sans échec : e-mails non reconnus, relevé à poursuivre.
+  const notes: string[] = [];
   const summary: ImportSummary = { created: 0, duplicates: 0, incomplete: 0, skipped: 0 };
   let fetched = 0;
   try {
@@ -462,7 +453,16 @@ export async function syncEmailAlerts(deps: SourcesDeps, userId: string, sourceI
     const read = await readNewMessages(config, password!, (source.cursor as ImapCursor | null) ?? null, deps.imap);
     const unknown = new Map<string, number>();
     let fetches = 0;
+    let cursor = read.cursor;
+    const started = Date.now();
     for (const msg of read.messages) {
+      if (Date.now() - started > (deps.mailboxBudgetMs ?? MAILBOX_BUDGET_MS)) {
+        // Reprise au premier message non traité : rien n'est perdu ni relu.
+        cursor = { uidValidity: read.cursor.uidValidity, lastUid: msg.uid - 1 };
+        const left = read.messages.filter((m) => m.uid >= msg.uid).length;
+        notes.push(`Suite au prochain passage : ${left} e-mail${left > 1 ? "s" : ""} restant${left > 1 ? "s" : ""} (temps de relevé écoulé).`);
+        break;
+      }
       const board = boardForSender(msg.fromAddress);
       if (!board) {
         const domain = msg.fromAddress?.split("@").pop() ?? "expéditeur inconnu";
@@ -482,15 +482,18 @@ export async function syncEmailAlerts(deps: SourcesDeps, userId: string, sourceI
         }
       }
     }
-    for (const [what, n] of unknown) errors.push(`Non reconnu : ${what} (${n} e-mail${n > 1 ? "s" : ""})`);
-    await deps.db.update(jobSources).set({ cursor: read.cursor, lastSyncAt: new Date(), lastError: null, state: "active" }).where(eq(jobSources.id, source.id));
+    for (const [what, n] of unknown) notes.push(`Non reconnu : ${what} (${n} e-mail${n > 1 ? "s" : ""})`);
+    await deps.db.update(jobSources).set({ cursor, lastSyncAt: new Date(), lastError: null, state: recovered }).where(eq(jobSources.id, source.id));
   } catch (err) {
     errors.push(message(err));
-    await deps.db.update(jobSources).set({ lastError: message(err), state: err instanceof SourceError && err.kind === "auth" ? "error" : source.state }).where(eq(jobSources.id, source.id));
+    await deps.db
+      .update(jobSources)
+      .set({ lastError: message(err), ...(err instanceof SourceError && err.kind === "auth" ? { state: failedAuth } : {}) })
+      .where(eq(jobSources.id, source.id));
   }
   const [done] = await deps.db
     .update(syncRuns)
-    .set({ status: errors.some((e) => !e.startsWith("Non reconnu")) ? "failed" : "ok", finishedAt: new Date(), fetched, created: summary.created, duplicates: summary.duplicates, errors })
+    .set({ status: errors.length ? "failed" : "ok", finishedAt: new Date(), fetched, created: summary.created, duplicates: summary.duplicates, errors: [...errors, ...notes] })
     .where(eq(syncRuns.id, run!.id))
     .returning();
   return done ?? null;

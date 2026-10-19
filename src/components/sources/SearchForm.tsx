@@ -38,7 +38,7 @@ export function SearchForm({ sources, initial }: { sources: { id: string; label:
         </Label>
         <Label>
           Lieu
-          <Input name="location" maxLength={100} value={c.location} onChange={(e) => setC({ ...c, location: e.target.value })} placeholder="Lyon, 69 ou Rhône" />
+          <Input name="location" maxLength={100} value={c.location} onChange={(e) => setC({ ...c, location: e.target.value })} placeholder="Lyon, 69003, 69 ou Rhône" />
         </Label>
         <Label>
           Rayon (km)
@@ -55,7 +55,10 @@ export function SearchForm({ sources, initial }: { sources: { id: string; label:
           </select>
         </Label>
       </div>
-      <p className="text-[12px] leading-5 text-muted-foreground">Une virgule sépare des variantes : « data engineer, ingénieur données » cherche l&apos;une ou l&apos;autre.</p>
+      <p className="text-[12px] leading-5 text-muted-foreground">
+        Une virgule sépare des variantes (5 au plus) : « data engineer, ingénieur données » cherche l&apos;une ou l&apos;autre. Lieu : ville, code postal ou
+        département ; pour les pages carrières, seule la préfecture d&apos;un département est reconnue.
+      </p>
       <fieldset className="flex flex-wrap gap-x-4 gap-y-1.5">
         <legend className="mb-1 text-sm font-medium">Contrat (tous si aucun)</legend>
         {Object.entries(CONTRACTS).map(([code, label]) => (

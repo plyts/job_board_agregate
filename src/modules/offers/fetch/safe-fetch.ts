@@ -13,7 +13,8 @@ const MAX_REDIRECTS = 3;
  * Domaines dont les conditions d'utilisation interdisent la collecte automatisée :
  * l'utilisateur colle le texte de l'annonce à la place.
  */
-const BLOCKED_DOMAINS = ["linkedin.com", "indeed.com", "indeed.fr"];
+// lnkd.in : raccourcisseur de LinkedIn, qui redirige vers linkedin.com.
+const BLOCKED_DOMAINS = ["linkedin.com", "lnkd.in", "indeed.com", "indeed.fr"];
 
 export type FetchFailure =
   | "invalid_url"
@@ -53,19 +54,26 @@ export type FetchOptions = {
 
 type Guard = { isAllowed: (address: string) => boolean; allowAnyPort: boolean };
 
-function guardedAgent(isAllowed: (a: string) => boolean): Agent {
-  // Vérifie l'adresse au moment de la connexion : protège aussi contre le DNS rebinding et les redirections.
-  const lookup = (hostname: string, options: { all?: boolean; family?: number }, cb: (...args: unknown[]) => void) => {
+type LookupCallback = (...args: unknown[]) => void;
+
+/**
+ * Résolution DNS qui refuse toute adresse non autorisée, au moment même de la connexion :
+ * protège contre le DNS rebinding (adresse publique au contrôle, interne à la connexion). Sert aussi au client IMAP.
+ */
+export function guardedLookup(isAllowed: (address: string) => boolean = isPublicAddress, rejected: (hostname: string) => Error = (h) => new PageFetchError("private_address", `Adresse non autorisée pour ${h}`)) {
+  return (hostname: string, options: { all?: boolean; family?: number }, cb: LookupCallback) => {
     dnsLookup(hostname, { all: true, family: options.family ?? 0 }, (err, addresses: LookupAddress[]) => {
       if (err) return cb(err);
-      const bad = addresses.find((a) => !isAllowed(a.address));
-      if (bad || addresses.length === 0) {
-        return cb(new PageFetchError("private_address", `Adresse non autorisée pour ${hostname}`));
-      }
+      if (addresses.length === 0 || addresses.some((a) => !isAllowed(a.address))) return cb(rejected(hostname));
       if (options.all) return cb(null, addresses);
       cb(null, addresses[0]!.address, addresses[0]!.family);
     });
   };
+}
+
+function guardedAgent(isAllowed: (a: string) => boolean): Agent {
+  // Vérifie l'adresse au moment de la connexion : protège aussi contre le DNS rebinding et les redirections.
+  const lookup = guardedLookup(isAllowed);
   return new Agent({ connect: { lookup: lookup as never, timeout: TIMEOUT_MS }, headersTimeout: TIMEOUT_MS, bodyTimeout: TIMEOUT_MS });
 }
 

@@ -70,7 +70,7 @@ export default async function SearchPage(props: PageProps<"/recherche">) {
               ))}
             </ul>
           ) : null}
-          {run.results?.length ? <SearchResults runId={run.id} items={run.results} /> : <p className="text-sm text-muted-foreground">Aucune offre ne correspond. Élargis les mots-clés, le lieu ou la période.</p>}
+          {run.results?.length ? <SearchResults key={run.id} runId={run.id} items={run.results} /> : <p className="text-sm text-muted-foreground">Aucune offre ne correspond. Élargis les mots-clés, le lieu ou la période.</p>}
         </Panel>
       ) : null}
 

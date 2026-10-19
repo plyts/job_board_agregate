@@ -7,13 +7,18 @@ import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
 import { getSourcesDeps } from "@/lib/sources-deps";
 import { getBoss, logger, savedSearchJobOptions } from "@/modules/platform";
-import { CONTRACTS, createSavedSearch, deleteSavedSearch, importSearchResults, runCombinedSearch, setSavedSearchActive } from "@/modules/sources";
+import { CONTRACTS, createSavedSearch, deleteSavedSearch, importSearchResults, MAX_KEYWORD_GROUPS, runCombinedSearch, setSavedSearchActive } from "@/modules/sources";
 
 export type SearchFormState = { error?: string; ok?: string; values?: Record<string, string | string[]> };
 
 const Id = z.uuid();
 const Query = z.object({
-  keywords: z.string().trim().min(2, "Indique au moins un mot-clé.").max(200),
+  keywords: z
+    .string()
+    .trim()
+    .min(2, "Indique au moins un mot-clé.")
+    .max(200)
+    .refine((k) => k.split(",").filter((g) => g.trim().length >= 2).length <= MAX_KEYWORD_GROUPS, `${MAX_KEYWORD_GROUPS} variantes au plus, séparées par des virgules.`),
   location: z.string().trim().max(100),
   radiusKm: z.coerce.number().int().min(0).max(100),
   contracts: z.array(z.enum(Object.keys(CONTRACTS) as [string, ...string[]])),

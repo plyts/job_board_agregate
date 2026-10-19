@@ -1,7 +1,7 @@
-import { and, eq, gte, inArray, or, sql, type SQL } from "drizzle-orm";
+import { and, arrayOverlaps, eq, gte, inArray, or, sql, type SQL } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { jobOffers, offerImports, offerSightings } from "@/db/schema";
-import { normalizeForHash } from "@/lib/text";
+import { fold } from "@/lib/text";
 import { withTransaction } from "@/db/transaction";
 import { extractJobPage } from "./fetch/html";
 import { fetchJobPage, PageFetchError } from "./fetch/safe-fetch";
@@ -28,22 +28,41 @@ export type IncomingOffer = {
   complete: boolean;
 };
 
+/** `upgraded` : le texte complet reçu a complété une offre existante, qui part donc en analyse. */
 export type IngestOutcome =
   | { kind: "created"; offerId: string; complete: boolean }
-  | { kind: "duplicate"; offerId: string }
-  | { kind: "seen"; offerId: string }
+  | { kind: "duplicate"; offerId: string; upgraded: boolean }
+  | { kind: "seen"; offerId: string; upgraded: boolean }
   | { kind: "skipped"; reason: string };
+
+export type IngestOptions = {
+  /** Faux : une offre existante « à compléter » n'est pas complétée (plafond d'analyses atteint). */
+  upgrade?: boolean;
+};
+
+/**
+ * Ville d'un lieu, sous la forme commune aux jobboards : « Lyon 03 (69) », « 69003 Lyon » et « Lyon, France » donnent « lyon ».
+ * Seuls un tiret entouré d'espaces, une virgule, une barre ou une parenthèse séparent la ville du reste :
+ * « Saint-Denis » et « Saint-Malo » restent distinctes.
+ */
+export function cityOf(location: string | null): string {
+  const first = (location ?? "").split(/\s[-–]\s|[,(/]/)[0] ?? "";
+  return fold(first)
+    .replace(/\b\d{5}\b/g, " ")
+    .replace(/^(paris|lyon|marseille)\s+\d{1,2}(\s*(e|er|eme))?\b.*$/, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 /** Une même annonce sur plusieurs jobboards : même intitulé, même entreprise, même ville. */
 export function dedupKey(title: string, company: string | null, location: string | null): string | null {
   const c = company ? normalizeCompanyName(company) : "";
   if (!c) return null;
-  const city = normalizeForHash((location ?? "").split(/[,(\-–]/)[0] ?? "").trim();
-  const t = normalizeForHash(title)
+  const t = fold(title)
     .replace(/\b(h|f)\s*\/?\s*(f|h)\b|\bh\/f\b|\bf\/h\b/g, "")
     .replace(/\s+/g, " ")
     .trim();
-  return t ? `${t}|${c}|${city}` : null;
+  return t ? `${t}|${c}|${cityOf(location)}` : null;
 }
 
 /** Fenêtre de rapprochement par intitulé : au-delà, une annonce republiée est traitée comme nouvelle. */
@@ -55,13 +74,19 @@ function partialText(o: IncomingOffer, excerpt: string): string {
   );
 }
 
-async function findExisting(db: Db, userId: string, urls: string[], hash: string | null, key: string | null, now: Date): Promise<string | null> {
+/** Offres d'un autre identifiant sur le même jobboard : ce sont deux annonces distinctes (intérim, postes multiples). */
+function otherPostingOnBoard(o: IncomingOffer): SQL {
+  return sql`not exists (select 1 from ${offerSightings} s where s.offer_id = ${jobOffers.id} and s.board = ${o.board} and s.external_id is not null and s.external_id <> ${o.externalId})`;
+}
+
+async function findExisting(db: Db, userId: string, o: IncomingOffer, urls: string[], hash: string | null, key: string | null, now: Date): Promise<string | null> {
   const conditions: SQL[] = [];
-  if (urls.length) conditions.push(inArray(jobOffers.canonicalUrl, urls));
+  if (urls.length) conditions.push(or(inArray(jobOffers.canonicalUrl, urls), arrayOverlaps(jobOffers.relatedUrls, urls))!);
   if (hash) conditions.push(eq(jobOffers.contentHash, hash));
   if (key) {
     const since = new Date(now.getTime() - DEDUP_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-    conditions.push(and(eq(jobOffers.dedupKey, key), gte(jobOffers.createdAt, since))!);
+    const sameKey = and(eq(jobOffers.dedupKey, key), gte(jobOffers.createdAt, since))!;
+    conditions.push(o.externalId ? and(sameKey, otherPostingOnBoard(o))! : sameKey);
   }
   if (!conditions.length) return null;
   const [row] = await db
@@ -72,6 +97,17 @@ async function findExisting(db: Db, userId: string, urls: string[], hash: string
   return row?.id ?? null;
 }
 
+/** Retient les adresses de l'annonce que l'offre existante ne connaissait pas encore. */
+async function addRelatedUrls(db: Db, userId: string, offerId: string, urls: string[]) {
+  if (!urls.length) return;
+  await db
+    .update(jobOffers)
+    .set({
+      relatedUrls: sql`array(select distinct u from unnest(${jobOffers.relatedUrls} || ${sql.param(urls)}::text[]) as u where u is distinct from ${jobOffers.canonicalUrl})`,
+    })
+    .where(and(eq(jobOffers.id, offerId), eq(jobOffers.userId, userId)));
+}
+
 async function recordSighting(db: Db, userId: string, offerId: string, o: IncomingOffer) {
   await db
     .insert(offerSightings)
@@ -79,44 +115,64 @@ async function recordSighting(db: Db, userId: string, offerId: string, o: Incomi
     .onConflictDoNothing();
 }
 
-/**
- * Ajoute une offre venue d'une source connectée, sans doublon entre jobboards :
- * déjà vue sur cette source (identifiant externe), même URL (y compris celle d'un partenaire), même texte,
- * ou même intitulé, entreprise et ville sur 90 jours. Une offre complète part en analyse ; un extrait
- * reste « à compléter ». Un texte complet reçu plus tard complète l'offre existante.
- */
-export async function ingestOffer(deps: OfferDeps, userId: string, incoming: IncomingOffer, now = new Date()): Promise<IngestOutcome> {
+/** Offre reçue, normalisée comme elle serait enregistrée : base commune de l'import et de la détection des offres connues. */
+type Prepared = { o: IncomingOffer; body: string; complete: boolean; urls: string[]; text: string; hash: string; key: string | null };
+
+function prepare(incoming: IncomingOffer): Prepared | null {
   const title = cleanText(incoming.title).split("\n")[0]?.slice(0, 200) ?? "";
-  if (!title) return { kind: "skipped", reason: "offre sans intitulé" };
+  if (!title) return null;
   const body = cleanText(incoming.text).slice(0, MAX_TEXT_LENGTH);
   const complete = incoming.complete && body.length >= MIN_TEXT_LENGTH;
   const o: IncomingOffer = { ...incoming, title };
-  const { db } = deps;
-
-  if (o.externalId) {
-    const [seen] = await db
-      .select({ id: offerSightings.id, offerId: offerSightings.offerId })
-      .from(offerSightings)
-      .where(and(eq(offerSightings.userId, userId), eq(offerSightings.board, o.board), eq(offerSightings.externalId, o.externalId)))
-      .limit(1);
-    if (seen) {
-      await db.update(offerSightings).set({ lastSeenAt: now }).where(eq(offerSightings.id, seen.id));
-      if (complete) await upgradeIfIncomplete(deps, userId, seen.offerId, body);
-      return { kind: "seen", offerId: seen.offerId };
-    }
-  }
-
   const urls = [...new Set([o.url, ...(o.relatedUrls ?? [])].map((u) => (u ? canonicalUrl(u) : null)).filter((u): u is string => Boolean(u)))];
   const text = complete ? body : partialText(o, body);
-  const hash = contentHash(text);
-  const key = dedupKey(title, o.company, o.location);
+  return { o, body, complete, urls, text, hash: contentHash(text), key: dedupKey(title, o.company, o.location) };
+}
 
-  const existing = await findExisting(db, userId, urls, complete ? hash : null, key, now);
+async function sightingOf(db: Db, userId: string, o: IncomingOffer) {
+  if (!o.externalId) return null;
+  const [seen] = await db
+    .select({ id: offerSightings.id, offerId: offerSightings.offerId })
+    .from(offerSightings)
+    .where(and(eq(offerSightings.userId, userId), eq(offerSightings.board, o.board), eq(offerSightings.externalId, o.externalId)))
+    .limit(1);
+  return seen ?? null;
+}
+
+/** Offre de l'utilisateur à laquelle `ingestOffer` rattacherait cette annonce, sans rien enregistrer. */
+export async function knownOfferId(db: Db, userId: string, incoming: IncomingOffer, now = new Date()): Promise<string | null> {
+  const p = prepare(incoming);
+  if (!p) return null;
+  const seen = await sightingOf(db, userId, p.o);
+  return seen?.offerId ?? findExisting(db, userId, p.o, p.urls, p.complete ? p.hash : null, p.key, now);
+}
+
+/**
+ * Ajoute une offre venue d'une source connectée, sans doublon entre jobboards :
+ * déjà vue sur cette source (identifiant externe), même URL (y compris celle d'un partenaire, dans les deux sens),
+ * même texte, ou même intitulé, entreprise et ville sur 90 jours (sauf deux identifiants distincts d'un même site).
+ * Une offre complète part en analyse ; un extrait reste « à compléter ». Un texte complet reçu plus tard complète
+ * l'offre existante, sauf si `options.upgrade` est faux.
+ */
+export async function ingestOffer(deps: OfferDeps, userId: string, incoming: IncomingOffer, now = new Date(), options: IngestOptions = {}): Promise<IngestOutcome> {
+  const p = prepare(incoming);
+  if (!p) return { kind: "skipped", reason: "offre sans intitulé" };
+  const { o, body, complete, urls, text, hash, key } = p;
+  const upgrade = complete && options.upgrade !== false;
+  const { db } = deps;
+
+  const seen = await sightingOf(db, userId, o);
+  if (seen) {
+    await db.update(offerSightings).set({ lastSeenAt: now }).where(eq(offerSightings.id, seen.id));
+    return { kind: "seen", offerId: seen.offerId, upgraded: upgrade && (await upgradeIfIncomplete(deps, userId, seen.offerId, body)) };
+  }
+
+  const existing = await findExisting(db, userId, o, urls, complete ? hash : null, key, now);
   if (existing) {
     await recordSighting(db, userId, existing, o);
+    await addRelatedUrls(db, userId, existing, urls);
     await db.insert(offerImports).values({ userId, offerId: existing, source: o.origin, outcome: "duplicate" });
-    if (complete) await upgradeIfIncomplete(deps, userId, existing, body);
-    return { kind: "duplicate", offerId: existing };
+    return { kind: "duplicate", offerId: existing, upgraded: upgrade && (await upgradeIfIncomplete(deps, userId, existing, body)) };
   }
 
   try {
@@ -129,7 +185,8 @@ export async function ingestOffer(deps: OfferDeps, userId: string, incoming: Inc
           source: o.origin,
           originalUrl: o.url,
           canonicalUrl: urls[0] ?? null,
-          title,
+          relatedUrls: urls.slice(1),
+          title: o.title,
           companyId,
           location: o.location,
           rawText: text,
@@ -149,22 +206,23 @@ export async function ingestOffer(deps: OfferDeps, userId: string, incoming: Inc
   } catch (err) {
     if (typeof err === "object" && err !== null && (err as { code?: string }).code === "23505") {
       // Même annonce importée en parallèle (autre source ou autre exécution) : on la rattache.
-      const winner = await findExisting(db, userId, urls, hash, key, now);
+      const winner = await findExisting(db, userId, o, urls, hash, key, now);
       if (winner) {
         await recordSighting(db, userId, winner, o);
-        return { kind: "duplicate", offerId: winner };
+        return { kind: "duplicate", offerId: winner, upgraded: false };
       }
     }
     throw err;
   }
 }
 
-async function upgradeIfIncomplete(deps: OfferDeps, userId: string, offerId: string, text: string) {
+async function upgradeIfIncomplete(deps: OfferDeps, userId: string, offerId: string, text: string): Promise<boolean> {
   const [offer] = await deps.db
     .select({ status: jobOffers.status })
     .from(jobOffers)
     .where(and(eq(jobOffers.id, offerId), eq(jobOffers.userId, userId)));
-  if (offer?.status === "incomplete") await completeOfferText(deps, userId, offerId, text);
+  if (offer?.status !== "incomplete") return false;
+  return (await completeOfferText(deps, userId, offerId, text)).ok;
 }
 
 export type CompleteResult = { ok: true } | { ok: false; error: string; duplicateOf?: string };

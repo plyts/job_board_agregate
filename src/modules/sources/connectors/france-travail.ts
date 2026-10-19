@@ -1,7 +1,8 @@
 import type { IncomingOffer } from "@/modules/offers";
 import { date, requestJson, str } from "../http";
 import { SourceError, type SearchConnector, type SearchOutcome, type SearchQuery } from "../types";
-import { departementCode, fold } from "./departements";
+import { departementCode, departementOfPostalCode, fold } from "./departements";
+import { searchEachGroup } from "./keywords";
 
 /**
  * API officielle « Offres d'emploi v2 » de France Travail (francetravail.io), en OAuth2 « client credentials ».
@@ -47,39 +48,66 @@ async function accessToken(creds: FranceTravailCredentials, endpoints: Endpoints
 /** Durées acceptées par le filtre « publiée depuis » (jours). */
 const PUBLISHED_STEPS = [1, 3, 7, 14, 31];
 
-type Commune = { code: string; libelle: string };
-let communes: { at: number; byName: Map<string, string> } | null = null;
+type Commune = { code: string; libelle: string; codePostal?: string };
 
-async function communeCode(name: string, token: string, endpoints: Endpoints): Promise<string | null> {
+/** Référentiel des communes : par nom, par code postal (s'il est fourni) et par code INSEE. */
+type Communes = { byName: Map<string, string>; byPostal: Map<string, string>; codes: Set<string> };
+let communes: { at: number; data: Communes } | null = null;
+
+async function loadCommunes(token: string, endpoints: Endpoints): Promise<Communes> {
   if (!communes || Date.now() - communes.at > 24 * 60 * 60 * 1000) {
     const res = await requestJson(`${endpoints.apiUrl}/referentiel/communes`, { headers: { authorization: `Bearer ${token}` }, intervalMs: FRANCE_TRAVAIL.intervalMs });
     const list = Array.isArray(res.body) ? (res.body as Commune[]) : [];
-    const byName = new Map<string, string>();
+    const data: Communes = { byName: new Map(), byPostal: new Map(), codes: new Set() };
     // Le premier code l'emporte pour les homonymes ; « Paris », « Lyon », « Marseille » visent la commune entière.
-    for (const c of list) if (c.code && c.libelle && !byName.has(fold(c.libelle))) byName.set(fold(c.libelle), c.code);
-    communes = { at: Date.now(), byName };
+    for (const c of list) {
+      if (!c.code) continue;
+      data.codes.add(c.code.toUpperCase());
+      if (c.libelle && !data.byName.has(fold(c.libelle))) data.byName.set(fold(c.libelle), c.code);
+      if (c.codePostal && !data.byPostal.has(c.codePostal)) data.byPostal.set(c.codePostal, c.code);
+    }
+    communes = { at: Date.now(), data };
   }
-  return communes.byName.get(fold(name)) ?? null;
+  return communes.data;
 }
 
-/** Paramètres de recherche France Travail à partir des critères communs. */
-export async function searchParams(query: SearchQuery, resolveCommune: (name: string) => Promise<string | null>): Promise<URLSearchParams> {
+/** Traduction d'un lieu saisi en commune France Travail (code INSEE), chargée à la demande. */
+export type Places = {
+  byName(name: string): Promise<string | null>;
+  /** Code postal → code INSEE ; null si le référentiel ne le connaît pas. */
+  byPostalCode(cp: string): Promise<string | null>;
+  isCommuneCode(code: string): Promise<boolean>;
+};
+
+/** Paramètres de recherche France Travail à partir des critères communs (une seule variante de mots-clés). */
+export async function searchParams(query: SearchQuery, places: Places): Promise<URLSearchParams> {
   const params = new URLSearchParams({ sort: "1" });
-  const keywords = query.keywords
-    .split(",")
+  // France Travail combine ses mots-clés (séparés par des virgules) : les mots d'une variante sont tous exigés.
+  const words = query.keywords
+    .split(/[\s,]+/)
     .map((k) => k.trim())
     .filter((k) => k.length >= 2);
-  if (keywords.length) params.set("motsCles", keywords.join(","));
+  if (words.length) params.set("motsCles", words.join(","));
   if (query.location?.trim()) {
     const loc = query.location.trim();
-    const dept = departementCode(loc);
-    if (/^\d[\dAB]\d{3}$/i.test(loc)) params.set("commune", loc.toUpperCase());
-    else if (dept && !/^(paris|lyon|marseille)$/i.test(fold(loc))) params.set("departement", dept);
-    else {
-      const code = await resolveCommune(loc);
+    if (/^\d{5}$/.test(loc) || /^2[AB]\d{3}$/i.test(loc)) {
+      // Cinq chiffres : un code postal (« 69003 », Lyon 3e), jamais lu comme code INSEE, qui désignerait une autre commune
+      // (69003 : Albigny-sur-Saône). Seuls les codes INSEE corses (2A…, 2B…) se reconnaissent à coup sûr.
+      const corsicanInsee = /^2[AB]\d{3}$/i.test(loc);
+      const code = corsicanInsee ? ((await places.isCommuneCode(loc.toUpperCase())) ? loc.toUpperCase() : null) : await places.byPostalCode(loc);
+      const dept = departementOfPostalCode(loc);
       if (code) params.set("commune", code);
       else if (dept) params.set("departement", dept);
-      else throw new SourceError(`France Travail ne connaît pas le lieu « ${loc} » : indique une commune, un département ou son code`, "invalid");
+      else throw new SourceError(`France Travail ne connaît pas le code « ${loc} » : indique la ville`, "invalid");
+    } else {
+      const dept = departementCode(loc);
+      if (dept && !/^(paris|lyon|marseille)$/i.test(fold(loc))) params.set("departement", dept);
+      else {
+        const code = await places.byName(loc);
+        if (code) params.set("commune", code);
+        else if (dept) params.set("departement", dept);
+        else throw new SourceError(`France Travail ne connaît pas le lieu « ${loc} » : indique une commune, un code postal ou un département`, "invalid");
+      }
     }
     if (params.has("commune") && query.radiusKm) params.set("distance", String(Math.min(Math.max(query.radiusKm, 0), 100)));
   }
@@ -156,22 +184,30 @@ export function franceTravailConnector(creds: FranceTravailCredentials, endpoint
     },
     async search(query): Promise<SearchOutcome> {
       const headers = await authed();
-      const params = await searchParams(query, (name) => communeCode(name, headers.authorization.slice(7), endpoints));
-      const offers: IncomingOffer[] = [];
-      let total: number | null = null;
-      const wanted = Math.min(query.limit, FRANCE_TRAVAIL.maxIndex + 1);
-      for (let start = 0; start < wanted; start += FRANCE_TRAVAIL.pageSize) {
-        const end = Math.min(start + FRANCE_TRAVAIL.pageSize, wanted) - 1;
-        params.set("range", `${start}-${end}`);
-        const res = await requestJson(`${endpoints.apiUrl}/offres/search?${params}`, { headers, intervalMs: FRANCE_TRAVAIL.intervalMs });
-        if (res.status === 204) break;
-        const m = /\/(\d+)\s*$/.exec(res.headers.get("content-range") ?? "");
-        if (m) total = Number(m[1]);
-        const page = ((res.body as { resultats?: FtOffer[] } | null)?.resultats ?? []).map(normalizeFranceTravail).filter((o): o is IncomingOffer => o !== null);
-        offers.push(...page);
-        if (res.status === 200 || page.length < end - start + 1 || (total !== null && end + 1 >= total)) break;
-      }
-      return { offers, total: total ?? offers.length };
+      const token = headers.authorization.slice(7);
+      const places: Places = {
+        byName: async (name) => (await loadCommunes(token, endpoints)).byName.get(fold(name)) ?? null,
+        byPostalCode: async (cp) => (await loadCommunes(token, endpoints)).byPostal.get(cp) ?? null,
+        isCommuneCode: async (code) => (await loadCommunes(token, endpoints)).codes.has(code),
+      };
+      return searchEachGroup(query, async (keywords, limit) => {
+        const params = await searchParams({ ...query, keywords }, places);
+        const offers: IncomingOffer[] = [];
+        let total: number | null = null;
+        const wanted = Math.min(limit, FRANCE_TRAVAIL.maxIndex + 1);
+        for (let start = 0; start < wanted; start += FRANCE_TRAVAIL.pageSize) {
+          const end = Math.min(start + FRANCE_TRAVAIL.pageSize, wanted) - 1;
+          params.set("range", `${start}-${end}`);
+          const res = await requestJson(`${endpoints.apiUrl}/offres/search?${params}`, { headers, intervalMs: FRANCE_TRAVAIL.intervalMs });
+          if (res.status === 204) break;
+          const m = /\/(\d+)\s*$/.exec(res.headers.get("content-range") ?? "");
+          if (m) total = Number(m[1]);
+          const page = ((res.body as { resultats?: FtOffer[] } | null)?.resultats ?? []).map(normalizeFranceTravail).filter((o): o is IncomingOffer => o !== null);
+          offers.push(...page);
+          if (res.status === 200 || page.length < end - start + 1 || (total !== null && end + 1 >= total)) break;
+        }
+        return { offers, total: total ?? offers.length };
+      });
     },
   };
 }

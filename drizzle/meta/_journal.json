@@ -162,6 +162,13 @@
       "when": 1792368388892,
       "tag": "0022_job-sources",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792403976577,
+      "tag": "0023_offer-related-urls",
+      "breakpoints": true
     }
   ]
 }

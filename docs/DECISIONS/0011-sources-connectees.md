@@ -39,21 +39,25 @@ Quatre types de sources, chacune dans un connecteur (`src/modules/sources`). Le 
 - Les sources interrogeables sont appelées en parallèle. Une source en échec n'empêche pas les autres.
 - Les résultats sont fusionnés : une même annonce n'apparaît qu'une fois, avec la liste des jobboards où elle a été vue.
   - Même URL, y compris l'URL du partenaire donnée par France Travail.
-  - Ou même intitulé, entreprise et ville.
+  - Ou même intitulé, entreprise et ville, sauf deux identifiants différents d'un même site (intérim, postes multiples).
+- Mots-clés : une virgule sépare des variantes (5 au plus), cherchées chacune par une requête ; les résultats sont réunis. Les API combinent leurs mots-clés en « et » (à vérifier pour France Travail).
+- Lieu : ville, code postal (jamais lu comme code INSEE) ou département. Les pages carrières ne reconnaissent d'un département que son nom, son code et sa préfecture.
 - Les offres déjà connues sont signalées. L'import est sélectif.
 
 **Recherches enregistrées.**
 - Le worker les relance toutes les 3 à 24 h. Il importe les nouvelles offres des plus récentes aux plus anciennes, dans la limite d'un plafond par passage : chaque offre complète part en analyse (quotas IA).
+- Le plafond compte ce qui lance réellement une analyse ou crée une offre : créations et offres « à compléter » complétées. Les offres connues sont reconnues avec exactement la règle de l'import (`knownOfferId`).
 
 **Alertes e-mail.**
-- La boîte est lue toutes les 15 minutes, à partir du dernier UID traité (UIDVALIDITY contrôlé).
+- La boîte est lue toutes les 15 minutes, à partir du dernier UID traité (UIDVALIDITY contrôlé). Un relevé dure 6 minutes au plus : la suite reprend au premier e-mail non traité.
 - Aucun message n'est marqué lu, déplacé ni supprimé.
 - Les e-mails non reconnus sont comptés et affichés.
 - Les liens de suivi sont résolus par requêtes HEAD, avec les protections anti-SSRF. Un lien vers un domaine exclu n'est jamais contacté.
+- Pour LinkedIn et Indeed, aucun lien n'est suivi, même par un routeur d'e-mails : seuls les liens directs vers l'offre, ou cachés dans un paramètre, sont lus. `lnkd.in` est un domaine exclu.
 
 **Dédoublonnage.**
 - `offer_sightings` (jobboard, identifiant externe) : une offre revue sur la même source n'est pas recomptée.
-- Entre sources : URL canonique, empreinte du texte, ou `dedup_key` (intitulé + entreprise + ville, sur 90 jours).
+- Entre sources : URL canonique ou URL connexe (`related_urls`, dans les deux sens), empreinte du texte, ou `dedup_key` (intitulé + entreprise + ville sans accents ni arrondissement, sur 90 jours ; « Saint-Denis » et « Saint-Malo » restent distinctes).
 - Un texte complet reçu plus tard complète l'offre « à compléter ».
 
 ## Conséquences

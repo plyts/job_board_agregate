@@ -1,6 +1,7 @@
 import type { IncomingOffer } from "@/modules/offers";
 import { date, htmlToText, requestJson, str } from "../http";
 import type { SearchConnector, SearchOutcome } from "../types";
+import { searchEachGroup } from "./keywords";
 
 /**
  * API Adzuna (agrégateur), pays « fr ». Clé gratuite (app_id, app_key) sur developer.adzuna.com.
@@ -64,17 +65,19 @@ export function adzunaConnector(creds: AdzunaCredentials, apiUrl = ADZUNA.apiUrl
       await call(1, { results_per_page: "1", what: "emploi" });
     },
     async search(query): Promise<SearchOutcome> {
-      const params: Record<string, string> = { results_per_page: String(Math.min(ADZUNA.pageSize, query.limit)), sort_by: "date" };
-      if (query.keywords.trim()) params.what = query.keywords.replace(/,/g, " ").trim();
-      if (query.location?.trim()) params.where = query.location.trim();
-      if (query.location?.trim() && query.radiusKm) params.distance = String(query.radiusKm);
-      if (query.publishedWithinDays) params.max_days_old = String(query.publishedWithinDays);
-      if (query.contracts.includes("CDI") && !query.contracts.some((c) => c === "CDD" || c === "MIS")) params.permanent = "1";
-      if (!query.contracts.includes("CDI") && query.contracts.some((c) => c === "CDD" || c === "MIS")) params.contract = "1";
-      const res = await call(1, params);
-      const body = (res.body ?? {}) as { results?: AdzunaJob[]; count?: number };
-      const offers = (body.results ?? []).map(normalizeAdzuna).filter((o): o is IncomingOffer => o !== null);
-      return { offers, total: typeof body.count === "number" ? body.count : offers.length };
+      return searchEachGroup(query, async (keywords, limit) => {
+        const params: Record<string, string> = { results_per_page: String(Math.min(ADZUNA.pageSize, limit)), sort_by: "date" };
+        if (keywords) params.what = keywords;
+        if (query.location?.trim()) params.where = query.location.trim();
+        if (query.location?.trim() && query.radiusKm) params.distance = String(query.radiusKm);
+        if (query.publishedWithinDays) params.max_days_old = String(query.publishedWithinDays);
+        if (query.contracts.includes("CDI") && !query.contracts.some((c) => c === "CDD" || c === "MIS")) params.permanent = "1";
+        if (!query.contracts.includes("CDI") && query.contracts.some((c) => c === "CDD" || c === "MIS")) params.contract = "1";
+        const res = await call(1, params);
+        const body = (res.body ?? {}) as { results?: AdzunaJob[]; count?: number };
+        const offers = (body.results ?? []).map(normalizeAdzuna).filter((o): o is IncomingOffer => o !== null);
+        return { offers, total: typeof body.count === "number" ? body.count : offers.length };
+      });
     },
   };
 }

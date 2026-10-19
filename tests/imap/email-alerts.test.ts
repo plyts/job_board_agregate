@@ -161,4 +161,19 @@ describe("alertes e-mail lues en IMAP (GreenMail)", { timeout: 30_000 }, async (
     // L'offre LinkedIn se complète en collant le texte : elle part en analyse.
     expect(await completeOfferText(deps, userId, linkedin.id, "Senior Data Engineer chez Sencia, à Lyon. Pipelines Python et SQL, Airflow, BigQuery ; équipe data de huit personnes.")).toEqual({ ok: true });
   });
+
+  it("un relevé interrompu par le temps reprend au premier e-mail non traité, sans perte ni relecture", async () => {
+    await mailbox(async (c) => {
+      for (const m of [WTTJ, LINKEDIN, INDEED]) await c.append("INBOX", m);
+    });
+    const connected = await connect();
+    const sourceId = connected.ok ? connected.sourceId : "";
+    // Temps écoulé avant le premier message : rien n'est traité, le curseur reste avant lui.
+    const stopped = await syncEmailAlerts({ ...deps, mailboxBudgetMs: -1 }, userId, sourceId);
+    expect(stopped).toMatchObject({ status: "ok", fetched: 0, created: 0 });
+    expect(stopped!.errors).toEqual(["Suite au prochain passage : 3 e-mails restants (temps de relevé écoulé)."]);
+    // 3 e-mails, 4 offres (l'alerte Welcome to the Jungle en contient deux).
+    expect(await syncEmailAlerts(deps, userId, sourceId)).toMatchObject({ status: "ok", fetched: 4, created: 4 });
+    expect(await syncEmailAlerts(deps, userId, sourceId)).toMatchObject({ fetched: 0, created: 0 });
+  });
 });

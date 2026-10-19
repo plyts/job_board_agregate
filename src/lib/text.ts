@@ -6,3 +6,8 @@ export function normalizeForHash(input: string): string {
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 }
+
+/** Forme de rapprochement : comme `normalizeForHash`, accents compris (« Rhône » = « rhone », « Saint-Étienne » = « saint etienne »). */
+export function fold(input: string): string {
+  return normalizeForHash(input.normalize("NFD").replace(/\p{Diacritic}/gu, ""));
+}

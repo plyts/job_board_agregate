@@ -1,7 +1,7 @@
 import type { IncomingOffer } from "@/modules/offers";
 import { date, escapedHtmlToText, htmlToText, requestJson, str } from "../http";
 import { SourceError, type SearchConnector, type SearchOutcome, type SearchQuery } from "../types";
-import { fold } from "./departements";
+import { DEPARTEMENTS, departementCode, departementOfPostalCode, fold, PREFECTURES } from "./departements";
 
 /**
  * Flux publics des pages carrières (offres que l'entreprise publie elle-même), sans identifiant :
@@ -134,11 +134,29 @@ export function normalizeSmartRecruiters(j: Raw, detail: Raw | null, page: Caree
 }
 
 /** Filtre local (les flux renvoient toutes les offres de l'entreprise) : tous les mots-clés d'un groupe, lieu, fraîcheur. */
+/** Mot ou groupe de mots entier dans un texte replié : « var » ne trouve pas « Varces ». */
+function hasWords(haystack: string, needle: string): boolean {
+  return needle.length > 0 && ` ${haystack} `.includes(` ${needle} `);
+}
+
+/**
+ * Lieu demandé : une ville (comparée au lieu de l'offre), ou un département (« 69 », « Rhône », ou un code postal
+ * faute de pouvoir situer sa commune) : son nom, son code ou sa préfecture doivent figurer dans le lieu de l'offre.
+ */
+export function locationMatches(offerLocation: string | null, wanted: string): boolean {
+  const where = fold(offerLocation ?? "");
+  const w = wanted.trim();
+  const dept = departementOfPostalCode(w) ?? departementCode(w);
+  if (!dept) return hasWords(where, fold(w));
+  const code = dept.toLowerCase();
+  return [DEPARTEMENTS[dept]!, ...(PREFECTURES[dept] ?? [])].some((n) => hasWords(where, fold(n))) || new RegExp(`(^| )${code}(\\d{3})?( |$)`).test(where);
+}
+
 export function matchesQuery(o: IncomingOffer, query: SearchQuery, now = new Date()): boolean {
   const haystack = fold(`${o.title}\n${o.text}`);
   const groups = query.keywords.split(",").map((g) => fold(g).split(" ").filter(Boolean)).filter((g) => g.length);
   if (groups.length && !groups.some((words) => words.every((w) => haystack.includes(w)))) return false;
-  if (query.location?.trim() && !fold(o.location ?? "").includes(fold(query.location))) {
+  if (query.location?.trim() && !locationMatches(o.location, query.location)) {
     const remote = /teletravail|remote|full remote/.test(fold(`${o.location ?? ""} ${o.text}`));
     if (!remote) return false;
   }

@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { SearchResultItem } from "@/db/schema";
 
-const day = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit" });
+// Fuseau explicite : le serveur (UTC) et le navigateur affichent le même jour.
+const day = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", timeZone: "Europe/Paris" });
 
 function excerpt(item: SearchResultItem): string {
   const lines = item.offer.text.split("\n").filter((l) => l.trim() && l.trim() !== item.offer.title);
