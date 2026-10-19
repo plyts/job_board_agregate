@@ -17,6 +17,8 @@ npm run dev                          # http://localhost:3000
 npm run worker                       # traitements en arrière-plan (autre terminal)
 ```
 
+Héberger gratuitement (test local avec Docker, accès privé depuis le téléphone, VM gratuite ; GitHub Pages ne convient pas) : [`docs/DEPLOIEMENT-GRATUIT.md`](docs/DEPLOIEMENT-GRATUIT.md).
+
 IA : renseigner au moins un fournisseur dans `.env.local` (par exemple `GROQ_API_KEY` et `GROQ_MODEL`), puis `npm run llm:check`. Les offres gratuites sont essayées avant l'API payante ; voir [`docs/DECISIONS/0006-fournisseurs-ia-multiples.md`](docs/DECISIONS/0006-fournisseurs-ia-multiples.md).
 
 | Commande | Rôle |
@@ -26,6 +28,7 @@ IA : renseigner au moins un fournisseur dans `.env.local` (par exemple `GROQ_API
 | `npm run test:e2e` | Parcours Playwright, bureau et mobile (base `jobpilot_e2e`) |
 | `npm run db:generate` | Génère une migration après modification de `src/db/schema` |
 | `npm run llm:check` | Vérifie chaque fournisseur IA configuré (clé, modèle, sortie JSON) |
+| `bash scripts/init-env.sh` | Prépare `.env` pour Docker Compose : génère les secrets encore vides, sans jamais remplacer une valeur |
 | `npm run sources:check [-- --email moi@exemple.fr]` | Confronte les connecteurs France Travail et Adzuna aux vraies API (format des offres, mots-clés, codes postaux, filtres) |
 | `npm run test:imap` | Lecture des alertes e-mail contre un vrai serveur IMAP (GreenMail, voir `docs/TESTING.md`) |
 | `npm run eval:offers -- --yes [--provider groq]` | Mesure la qualité d'extraction sur le jeu d'évaluation, par fournisseur |

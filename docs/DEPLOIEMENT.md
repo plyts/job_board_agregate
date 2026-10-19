@@ -11,8 +11,10 @@ Choix et raisons : ADR 0010. Ce guide suppose une VM Debian ou Ubuntu récente, 
 
 ```sh
 git clone <dépôt> jobpilot && cd jobpilot
-cp .env.example .env && chmod 600 .env
+bash scripts/init-env.sh   # copie .env.example et génère POSTGRES_PASSWORD, BACKUP_PASSPHRASE, JOBPILOT_SECRETS_KEY
 ```
+
+Version gratuite (test local, accès par Tailscale, VM Oracle « Always Free ») : docs/DEPLOIEMENT-GRATUIT.md.
 
 Dans `.env`, au minimum :
 

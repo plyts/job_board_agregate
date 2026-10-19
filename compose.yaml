@@ -12,6 +12,10 @@ x-app: &app
     STORAGE_DIR: /data/storage
   volumes:
     - storage:/data/storage
+  # Joindre un modèle IA lancé sur la machine hôte (Ollama) : LOCAL_BASE_URL=http://host.docker.internal:11434/v1.
+  # Docker Desktop le fournit déjà ; sous Linux, cette ligne le crée.
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
   depends_on:
     db:
       condition: service_healthy
