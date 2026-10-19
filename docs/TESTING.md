@@ -13,6 +13,7 @@ Priorité aux comportements critiques, pas à la couverture.
 | Sécurité | Tests ciblés | SSRF (IP privées, redirections), types de fichiers, CSRF, injection de prompt (offres piégées du jeu de test) |
 | Charge | Script | 100 offres importées d'un coup : toutes analysées, aucun doublon d'analyse, coût et durée mesurés |
 | Accessibilité | axe-core dans Playwright | Écrans du parcours critique |
+| Sources connectées | Vitest + faux serveurs HTTP, GreenMail | Connecteurs, dédoublonnage, recherche combinée, lecture IMAP sans modification de la boîte |
 
 ## Accessibilité
 
@@ -65,6 +66,32 @@ axe ne couvre pas tout. D'où une relecture au lecteur d'écran.
 5. déplacement d'une carte du Kanban au clavier ;
 6. confirmation d'envoi ;
 7. consentement IA.
+
+## Sources connectées
+
+Aucune API réelle n'est appelée par les tests :
+- **unitaires** (`tests/unit/sources.test.ts`) : normalisation France Travail et Adzuna, détection des 5 fournisseurs de pages carrières et normalisation Greenhouse et Lever, paramètres de recherche (lieu, contrats, période), clé de dédoublonnage, liens d'offre des 9 sites reconnus et nettoyés, extraction depuis une alerte HTML et une alerte texte, liens de suivi, chiffrement des secrets ;
+- **intégration** (`tests/integration/sources.test.ts`) : un faux serveur HTTP local joue France Travail (jeton OAuth2, pages 206), Adzuna et Greenhouse ; recherche combinée et fusion des doublons, import, recherche enregistrée avec plafond, offre vue sur plusieurs sites, export sans secret, purge des recherches ;
+- **e2e** (`tests/e2e/sources.spec.ts`) : connexion testée (identifiants refusés puis acceptés), recherche combinée, import, offre à compléter, recherche enregistrée ; le faux serveur (`tests/e2e/fake-sources.ts`, port 3199) est démarré par `global-setup.ts`.
+
+### Alertes e-mail contre un vrai serveur IMAP
+
+`npm run test:imap` lance `tests/imap/` contre GreenMail, un serveur de messagerie de test :
+
+```sh
+docker run -p 3143:3143 \
+  -e GREENMAIL_OPTS="-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.users=alertes:mot-de-passe-app@localhost" \
+  greenmail/standalone:2.1.5
+npm run test:imap
+```
+
+Le test vérifie, avec de vraies sessions IMAP :
+- qu'un mauvais mot de passe est refusé ;
+- que les alertes déposées sont lues, les offres créées « à compléter » et les sites reconnus ;
+- que la boîte n'est pas modifiée (aucun message lu ni supprimé) ;
+- qu'un second passage ne relit pas les messages déjà traités.
+
+`IMAP_TEST_HOST` et `IMAP_TEST_PORT` changent l'adresse du serveur. La CI démarre GreenMail en service et lance ce test après `npm test`. Le format des alertes reste celui de messages écrits pour le test : à valider sur de vraies alertes (voir `docs/PROGRESS.md`).
 
 ## Charge et sauvegardes
 

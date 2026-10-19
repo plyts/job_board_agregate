@@ -60,21 +60,24 @@ const OfferExtraction = z.object({
 });
 ```
 
-## Interface commune des connecteurs (V2, définie dès le MVP)
+## Interface commune des connecteurs (implémentée, ADR 0011)
 
 ```ts
-interface JobConnector {
-  readonly id: string;                         // "manual-url", "france-travail", …
-  readonly access: {
-    method: "official_api" | "public_feed" | "user_forwarded_email" | "user_input";
-    termsUrl: string; verifiedAt: string;      // date de la vérification des CGU
-    rateLimit: { requests: number; perSeconds: number };
-  };
-  connectionStatus(ctx: ConnectorContext): Promise<"connected" | "not_connected" | "revoked" | "error">;
-  fetchPage(query: SearchQuery, cursor: string | null, ctx: ConnectorContext):
-    Promise<{ items: RawOffer[]; nextCursor: string | null }>;
-  normalize(raw: RawOffer): NormalizedOffer;   // fonction pure, testée sur fixtures
+// src/modules/sources/types.ts
+interface SearchConnector {                    // France Travail, Adzuna, pages carrières
+  search(query: SearchQuery): Promise<{ offers: IncomingOffer[]; total: number | null }>;
+  test(): Promise<void>;                       // appel minimal avant d'enregistrer la source
 }
+type SearchQuery = { keywords: string; location: string | null; radiusKm: number | null;
+  contracts: string[]; publishedWithinDays: number | null; limit: number };
+
+// src/modules/offers/ingest.ts
+type IncomingOffer = { origin: ConnectedOrigin; board: string; externalId: string | null;
+  url: string | null; relatedUrls?: string[]; title: string; company: string | null;
+  location: string | null; publishedAt: Date | null; text: string; complete: boolean };
+ingestOffer(deps, userId, offer): Promise<{ kind: "created" | "duplicate" | "seen" | "skipped"; … }>;
 ```
 
-Le cœur métier ne connaît que `NormalizedOffer`. Ajouter une source = ajouter un fichier de connecteur, ses fixtures et ses tests, sans toucher aux modules `offers` ou `analysis`. Le planificateur applique la limite de débit, les reprises et enregistre un `SyncRun` par exécution.
+Chaque connecteur est une fonction pure de normalisation testée sur fixtures, plus un client HTTP qui respecte le débit de la source (`throttle`) et traduit ses erreurs en `SourceError` (`auth`, `quota`, `unavailable`, `invalid`, message sans secret). Les alertes e-mail ne sont pas un `SearchConnector` : `syncEmailAlerts` lit la boîte IMAP depuis le dernier UID traité et passe chaque message à `extractOffers` (`src/modules/sources/email/`).
+
+`ingestOffer` est le seul point d'entrée vers les offres : dédoublonnage (même site et identifiant → « vue », URL canonique, empreinte ou intitulé + entreprise + ville sur 90 jours → doublon), création en transaction avec mise en file de l'analyse si le texte est complet, sinon statut `incomplete`. Ajouter une source = un fichier de connecteur, ses fixtures et ses tests, sans toucher aux modules `offers` ou `analysis`. Chaque recherche, recherche enregistrée ou relève de boîte enregistre un `sync_runs`.

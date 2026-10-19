@@ -23,7 +23,7 @@ Ordre réel : T0 → T1 → T2 → **T4 avant T3**. L'import d'offres ne touche 
 
 ## V2 — Automatisation (Should)
 
-Connecteur France Travail (après vérification de l'API et des CGU), import d'alertes e-mail transférées, flux publics d'ATS, synchronisation planifiée, recherches enregistrées exécutées périodiquement, dédoublonnage par similarité, vues calendrier / entreprise / aujourd'hui, relances avancées, recherche sémantique (pgvector) si le jeu d'évaluation montre un gain.
+~~Connecteur France Travail, import d'alertes e-mail transférées, flux publics d'ATS, synchronisation planifiée, recherches enregistrées exécutées périodiquement~~ (fait, ADR 0011 ; Adzuna en plus ; API et CGU encore à vérifier sur les sites officiels), dédoublonnage par similarité, vues calendrier / entreprise / aujourd'hui, relances avancées, recherche sémantique (pgvector) si le jeu d'évaluation montre un gain.
 
 ## V3 — Optimisation (Could)
 

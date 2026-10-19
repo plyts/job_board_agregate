@@ -17,5 +17,5 @@ test("le tableau de bord mesure l'entonnoir sur la journée ou 7 jours", async (
   const collected = Number(await funnel.getByRole("listitem").filter({ hasText: "Offres collectées" }).locator("span").last().textContent());
   expect(collected).toBeGreaterThanOrEqual(4);
   await expect(page.getByRole("region", { name: "Santé du pipeline" })).toContainText("Coût IA sur 7 jours");
-  await expect(page.getByRole("region", { name: "Par source" })).toContainText("Connecteurs officiels (V2)");
+  await expect(page.getByRole("region", { name: "Par source" }).getByRole("link", { name: "Gérer les sources" })).toBeVisible();
 });

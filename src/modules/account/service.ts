@@ -9,6 +9,9 @@ import {
   applications,
   boardColumns,
   companies,
+  jobSources,
+  offerSightings,
+  savedSearches,
   cvSuggestions,
   cvVersions,
   jobOffers,
@@ -77,10 +80,14 @@ export async function exportAccount(deps: AccountDeps, userId: string, now = new
     llmCalls: await db.select().from(llmCalls).where(by(llmCalls)),
     aiConsents: await db.select().from(aiConsents).where(by(aiConsents)),
     boardColumns: await db.select().from(boardColumns).where(by(boardColumns)),
+    // Sources connectées : réglages seulement, jamais les identifiants chiffrés.
+    sources: (await db.select().from(jobSources).where(by(jobSources))).map(({ secret, ...source }) => ({ ...source, hasSecret: Boolean(secret) })),
+    savedSearches: await db.select().from(savedSearches).where(by(savedSearches)),
+    offerSightings: await db.select().from(offerSightings).where(by(offerSightings)),
   };
   const files: Record<string, Uint8Array> = {
     "LISEZ-MOI.txt": strToU8(
-      "Export JobPilot : donnees.json contient toutes tes données (offres, analyses, profil maître et ses versions, CV personnalisés, matchings, candidatures, événements, contacts, journal des appels IA sans contenu, consentements IA datés, réglage des colonnes du Kanban). Le dossier fichiers/ contient les fichiers stockés (CV importés, offres en fichier, documents réellement envoyés).\n",
+      "Export JobPilot : donnees.json contient toutes tes données (offres, analyses, profil maître et ses versions, CV personnalisés, matchings, candidatures, événements, contacts, journal des appels IA sans contenu, consentements IA datés, réglage des colonnes du Kanban, sources connectées sans leurs identifiants, recherches enregistrées). Le dossier fichiers/ contient les fichiers stockés (CV importés, offres en fichier, documents réellement envoyés).\n",
     ),
     "donnees.json": strToU8(JSON.stringify(data, null, 2)),
   };

@@ -14,7 +14,8 @@ import { LlmRouter } from "../../src/modules/platform/llm/router";
 import { saveDraft, startDraft, validateDraft } from "../../src/modules/profile";
 import { toProfileContent } from "../../src/modules/profile/extract";
 import { createApplication } from "../../src/modules/applications";
-import { analyzedOfferTitle, applicationOfferTitle, boardUser, deletableUser, E2E_JUDGEMENT, E2E_PROFILE_USER, E2E_PROJECTS, E2E_USER } from "./fixtures";
+import { startFakeSources } from "./fake-sources";
+import { analyzedOfferTitle, applicationOfferTitle, boardUser, deletableUser, E2E_JUDGEMENT, E2E_PROFILE_USER, E2E_PROJECTS, E2E_USER, sourcesUser } from "./fixtures";
 
 /** Prépare la base e2e : migrations, compte de test et une offre déjà analysée (faux client IA, aucun appel payant). */
 export default async function globalSetup() {
@@ -27,7 +28,8 @@ export default async function globalSetup() {
     // Comptes recréés à chaque exécution : état de départ identique (la suppression emporte offres, profil et journal).
     const disposable = E2E_PROJECTS.map(deletableUser);
     const boards = E2E_PROJECTS.map(boardUser);
-    for (const account of [E2E_USER, E2E_PROFILE_USER, ...disposable, ...boards]) {
+    const sourceAccounts = E2E_PROJECTS.map(sourcesUser);
+    for (const account of [E2E_USER, E2E_PROFILE_USER, ...disposable, ...boards, ...sourceAccounts]) {
       const previous = await findUserByEmail(db, account.email);
       if (previous) await db.delete(users).where(eq(users.id, previous.id));
       // Les échecs volontaires des scénarios précédents ne doivent pas verrouiller le compte.
@@ -36,6 +38,7 @@ export default async function globalSetup() {
     const user = await createUser(db, E2E_USER);
     await createUser(db, E2E_PROFILE_USER);
     for (const account of disposable) await createUser(db, account);
+    for (const account of sourceAccounts) await createUser(db, account);
     // Une candidature sur une offre non analysée (colonne « À analyser ») par compte « colonnes ».
     for (const account of boards) {
       const owner = await createUser(db, account);
@@ -113,4 +116,7 @@ export default async function globalSetup() {
   } finally {
     await pool.end();
   }
+  // Faux serveur des API de sources (France Travail, Adzuna), arrêté à la fin des tests.
+  const fake = await startFakeSources();
+  return () => new Promise<void>((resolve) => fake.close(() => resolve()));
 }

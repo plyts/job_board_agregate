@@ -11,6 +11,8 @@ export {
   SCHEDULES,
   suggestJobOptions,
   letterJobOptions,
+  mailboxJobOptions,
+  savedSearchJobOptions,
   transactionDb,
   type QueueName,
 } from "./queue";
@@ -38,3 +40,4 @@ export { LlmRouter } from "./llm/router";
 export { costUsd } from "./llm/pricing";
 export { untrustedDocument, UNTRUSTED_DATA_RULE } from "./llm/untrusted";
 export { LlmError, type DataClass, type LlmClient, type StructuredRequest } from "./llm/types";
+export { decryptSecret, encryptSecret, secretsConfigured, SecretsUnavailableError } from "./secrets";

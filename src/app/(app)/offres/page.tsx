@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
-import { listOffers, OFFER_STATUSES, type OfferStatus } from "@/modules/offers";
+import { listOffers, OFFER_ORIGINS, OFFER_STATUSES, type OfferOrigin, type OfferStatus } from "@/modules/offers";
 
 export const metadata: Metadata = { title: "Offres" };
 
@@ -20,8 +20,9 @@ export default async function OffersPage(props: PageProps<"/offres">) {
   const sp = await props.searchParams;
   const q = typeof sp.q === "string" ? sp.q.slice(0, 100) : "";
   const status = typeof sp.statut === "string" && (OFFER_STATUSES as readonly string[]).includes(sp.statut) ? (sp.statut as OfferStatus) : undefined;
-  const offers = await listOffers(getDb(), user.id, { q, status });
-  const filtered = Boolean(q || status);
+  const origin = typeof sp.origine === "string" && (OFFER_ORIGINS as readonly string[]).includes(sp.origine) ? (sp.origine as OfferOrigin) : undefined;
+  const offers = await listOffers(getDb(), user.id, { q, status, origin });
+  const filtered = Boolean(q || status || origin);
 
   return (
     <>
@@ -46,6 +47,17 @@ export default async function OffersPage(props: PageProps<"/offres">) {
               {OFFER_STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {OFFER_STATUS_LABELS[s].label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
+            Origine
+            <select name="origine" defaultValue={origin ?? ""} className="min-h-11 rounded-lg border border-border bg-panel px-2 text-sm text-foreground">
+              <option value="">Toutes</option>
+              {OFFER_ORIGINS.map((o) => (
+                <option key={o} value={o}>
+                  {OFFER_SOURCE_LABELS[o]}
                 </option>
               ))}
             </select>

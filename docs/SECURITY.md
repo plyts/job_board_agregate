@@ -12,6 +12,9 @@
 | XSS via le texte d'une offre | Rendu en texte (échappement React), aucun HTML importé injecté tel quel |
 | Vol de session | Cookie `HttpOnly; Secure; SameSite=Lax`, rotation à la connexion, expiration, CSRF sur les mutations |
 | Fuite de secrets | Variables d'environnement, jamais dans le dépôt ; clé IA côté serveur uniquement |
+| Identifiants des sources (clés d'API, mot de passe IMAP) | Jamais de mot de passe de compte de jobboard ; chiffrement AES-256-GCM (`JOBPILOT_SECRETS_KEY` hors base, contexte authentifié utilisateur + source) ; jamais affichés, journalisés ni exportés ; connexion testée avant enregistrement |
+| Hôte IMAP saisi visant le réseau interne | Résolution DNS puis refus des adresses non publiques ; TLS (993) ou STARTTLS exigé (143), jamais de mot de passe en clair ; lecture seule |
+| Liens de suivi des alertes | Requêtes HEAD seulement, protections SSRF de l'import par URL, aucun appel vers un domaine exclu (LinkedIn, Indeed) |
 | Modification d'un document envoyé | Trigger SQL interdisant `UPDATE`/`DELETE` ; empreinte SHA-256 vérifiée au téléchargement |
 
 ## Données personnelles (RGPD)

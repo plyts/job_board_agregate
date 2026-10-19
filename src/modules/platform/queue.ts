@@ -49,6 +49,12 @@ export const QUEUES = {
     retryDelayMax: 600,
     expireInSeconds: 300,
   },
+  /** Lecture d'une boîte d'alertes e-mail (toutes les 15 minutes, ou à la demande). */
+  "sources.mailbox": { policy: "exclusive", retryLimit: 1, retryDelay: 300, expireInSeconds: 600 },
+  /** Exécution d'une recherche enregistrée sur les sources connectées. */
+  "sources.search": { policy: "exclusive", retryLimit: 1, retryDelay: 300, expireInSeconds: 900 },
+  /** Planificateur des sources : met en file les boîtes à lire et les recherches arrivées à échéance. */
+  "sources.tick": { policy: "exclusive", retryLimit: 0, expireInSeconds: 120 },
   /** Sauvegarde chiffrée de l'instance : planifiée chaque jour par le worker, ou demandée depuis les réglages. */
   "backup.run": { policy: "exclusive", retryLimit: 1, retryDelay: 600, expireInSeconds: 3600 },
   /** Balayage planifié : remet en file les analyses en attente (budget atteint, worker arrêté). */
@@ -73,7 +79,10 @@ export async function ensureQueues(boss: PgBoss): Promise<void> {
   }
 }
 
-export const SCHEDULES: { queue: QueueName; cron: string }[] = [{ queue: "offer.resume", cron: "*/30 * * * *" }];
+export const SCHEDULES: { queue: QueueName; cron: string }[] = [
+  { queue: "offer.resume", cron: "*/30 * * * *" },
+  { queue: "sources.tick", cron: "*/15 * * * *" },
+];
 
 export function analysisJobOptions(offerId: string) {
   return { singletonKey: `offer:${offerId}` };
@@ -89,6 +98,14 @@ export function matchJobOptions(matchId: string) {
 
 export function suggestJobOptions(draftId: string) {
   return { singletonKey: `cv:${draftId}` };
+}
+
+export function mailboxJobOptions(sourceId: string) {
+  return { singletonKey: `mailbox:${sourceId}` };
+}
+
+export function savedSearchJobOptions(searchId: string) {
+  return { singletonKey: `search:${searchId}` };
 }
 
 /** Une seule sauvegarde en attente ou en cours à la fois. */

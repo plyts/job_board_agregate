@@ -15,6 +15,8 @@
 |---|---|---|---|---|
 | Compte et connexion | e-mail, nom affiché, empreinte du mot de passe (scrypt), sessions, tentatives de connexion | accès sécurisé | exécution du service (art. 6.1.b) ; intérêt légitime pour l'anti force brute (art. 6.1.f) | aucun |
 | Offres importées | texte des annonces, URL, entreprise | analyse des exigences | exécution du service | fournisseur IA (données publiques, sans consentement) |
+| Sources connectées | clés d'API (chiffrées), recherches enregistrées, offres trouvées | recherche combinée et suivi | exécution du service | France Travail, Adzuna, fournisseurs des pages carrières (critères de recherche seulement, aucune donnée du profil) |
+| Boîte d'alertes e-mail | adresse et mot de passe d'application (chiffré), e-mails d'alertes des jobboards (lus, jamais stockés : seules les offres extraites le sont) | importer les offres reçues | exécution du service | aucun |
 | Profil maître (import de CV) | CV PDF/DOCX, identité, coordonnées, expériences, formations, compétences | construire le profil sourcé | exécution du service | fournisseur IA, **texte masqué et sur consentement** (`profile.extract`) |
 | Matching | profil sans coordonnées, exigences de l'offre | mesurer l'adéquation | exécution du service | fournisseur IA, masqué et sur consentement (`match.judge`) |
 | CV personnalisé | sélection du profil, reformulations | adapter le CV à l'offre | exécution du service | fournisseur IA, masqué et sur consentement (`cv.suggest`) |
@@ -65,6 +67,7 @@ Ces informations sont celles publiées par les fournisseurs et doivent être rev
 | Brouillon d'import abandonné | immédiat, fichier compris | `discardDraft` |
 | Sessions | 30 jours sans activité | `deleteExpiredSessions` (worker) |
 | Tentatives de connexion | 30 jours | `purgeLoginAttempts` (worker) |
+| Recherches ponctuelles et leurs résultats | 30 jours | `purgeSearchRuns` (worker) |
 | Profil, CV, candidatures, contacts, journal IA, consentements | jusqu'à suppression par l'utilisateur ou du compte | suppression en cascade |
 | Documents réellement envoyés | jusqu'à suppression du compte | protégés contre toute autre suppression (preuve) |
 | Sauvegardes chiffrées | 30 jours (`BACKUP_RETENTION_DAYS`) ; copie hors site selon la règle de cycle de vie du bucket | rotation par `scripts/backup.sh`, planifiée chaque jour par le worker |

@@ -31,7 +31,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   // Modules natifs ou lourds exécutés uniquement côté serveur.
-  serverExternalPackages: ["pg", "pg-boss", "pino", "unpdf"],
+  serverExternalPackages: ["pg", "pg-boss", "pino", "unpdf", "imapflow", "mailparser"],
   experimental: {
     // Fichiers importés : 10 Mo maximum, plus l'enveloppe multipart.
     serverActions: { bodySizeLimit: "11mb" },

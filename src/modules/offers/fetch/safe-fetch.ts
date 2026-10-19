@@ -172,3 +172,40 @@ export async function fetchJobPage(rawUrl: string, options: FetchOptions = {}): 
     await agent.close();
   }
 }
+
+/**
+ * Suit les redirections d'un lien de suivi (e-mail d'alerte) pour retrouver l'adresse de l'offre, sans lire de page :
+ * requêtes HEAD seulement, mêmes protections réseau, et aucun appel vers un domaine exclu (on s'arrête avant).
+ */
+export async function resolveRedirect(rawUrl: string, options: FetchOptions & { maxHops?: number } = {}): Promise<string> {
+  const guard: Guard = { isAllowed: options.isAllowedAddress ?? isPublicAddress, allowAnyPort: options.allowAnyPort ?? false };
+  let current: URL;
+  try {
+    current = checkUrl(rawUrl, guard);
+  } catch {
+    return rawUrl;
+  }
+  const agent = guardedAgent(guard.isAllowed);
+  try {
+    for (let hop = 0; hop < (options.maxHops ?? 5); hop++) {
+      let res;
+      try {
+        res = await fetch(current, { method: "HEAD", dispatcher: agent, redirect: "manual", headers: { "user-agent": USER_AGENT }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+      } catch {
+        return current.toString();
+      }
+      const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+      if (!location) return current.toString();
+      const next = new URL(location, current).toString();
+      try {
+        current = checkUrl(next, guard);
+      } catch {
+        // Domaine exclu ou adresse refusée : l'adresse suffit à reconnaître l'offre, on ne la contacte pas.
+        return next;
+      }
+    }
+    return current.toString();
+  } finally {
+    await agent.close();
+  }
+}

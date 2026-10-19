@@ -3,6 +3,7 @@ import type { Db } from "@/db/client";
 import { applicationEvents, applications, companies, cvVersions, jobOffers, llmCalls, offerAnalyses, offerEvents, offerImports } from "@/db/schema";
 import { addDays } from "@/modules/applications/rules";
 import { dailyBudgetUsd, spentTodayUsd } from "@/modules/platform/llm/journal";
+import { OFFER_ORIGINS } from "@/modules/offers/service";
 
 export type Period = "day" | "week";
 export type DashboardOptions = { period: Period; today: string; timeZone: string; dailyGoal: number };
@@ -113,7 +114,7 @@ export async function getDashboard(db: Db, userId: string, opts: DashboardOption
   ]);
 
   const days = opts.period === "day" ? 1 : 7;
-  const sources = (["url", "text", "file"] as const).map((source) => {
+  const sources = OFFER_ORIGINS.map((source) => {
     const row = bySource.find((r) => r.source === source);
     return {
       source,

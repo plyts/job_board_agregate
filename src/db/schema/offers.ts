@@ -2,8 +2,10 @@ import { sql } from "drizzle-orm";
 import { index, pgEnum, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { users } from "./identity";
 
-export const offerSource = pgEnum("offer_source", ["url", "text", "file"]);
-export const offerStatus = pgEnum("offer_status", ["queued", "analyzing", "analyzed", "failed", "qualified", "discarded"]);
+/** Origine d'une offre : import manuel (url, text, file) ou source connectée (docs/DECISIONS/0011). */
+export const offerSource = pgEnum("offer_source", ["url", "text", "file", "france_travail", "adzuna", "career_page", "email_alert"]);
+// « incomplete » : offre connue par un extrait (alerte e-mail, agrégateur) ; le texte complet est à coller ou à récupérer.
+export const offerStatus = pgEnum("offer_status", ["incomplete", "queued", "analyzing", "analyzed", "failed", "qualified", "discarded"]);
 export const importOutcome = pgEnum("import_outcome", ["created", "duplicate"]);
 
 export const companies = pgTable(
@@ -38,6 +40,8 @@ export const jobOffers = pgTable(
     contentHash: text("content_hash").notNull(),
     sourceFileKey: text("source_file_key"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
+    /** Intitulé, entreprise et ville normalisés : rapproche une même annonce vue sur plusieurs jobboards. */
+    dedupKey: text("dedup_key"),
     lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }).notNull().defaultNow(),
     status: offerStatus("status").notNull().default("queued"),
     statusReason: text("status_reason"),
@@ -48,6 +52,7 @@ export const jobOffers = pgTable(
     unique("job_offers_user_hash_unique").on(t.userId, t.contentHash),
     uniqueIndex("job_offers_user_canonical_url_unique").on(t.userId, t.canonicalUrl).where(sql`${t.canonicalUrl} is not null`),
     index("job_offers_user_created_idx").on(t.userId, t.createdAt),
+    index("job_offers_user_dedup_idx").on(t.userId, t.dedupKey),
   ],
 );
 

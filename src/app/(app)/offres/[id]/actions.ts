@@ -5,6 +5,8 @@ import { z } from "zod";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
 import { correctRequirement, decideOffer, requeueFailedOffer } from "@/modules/analysis";
+import { getOfferDeps } from "@/lib/offers-deps";
+import { completeOfferText, fetchOfferText } from "@/modules/offers";
 import { analysisJobOptions, getBoss } from "@/modules/platform";
 
 const Id = z.uuid();
@@ -49,4 +51,27 @@ export async function retryAnalysisAction(offerId: string): Promise<void> {
     await boss.send("offer.analyze", { offerId, userId: user.id }, analysisJobOptions(offerId));
   }
   refresh();
+}
+
+export type CompleteState = { error?: string; duplicateOf?: string };
+
+/** Texte complet collé pour une offre « à compléter » : elle part en analyse. */
+export async function completeOfferAction(offerId: string, _prev: CompleteState, formData: FormData): Promise<CompleteState> {
+  const user = await requireUser();
+  const text = formData.get("text");
+  if (!Id.safeParse(offerId).success || typeof text !== "string") return { error: "Offre inconnue." };
+  const r = await completeOfferText(getOfferDeps(), user.id, offerId, text);
+  if (!r.ok) return { error: r.error, duplicateOf: r.duplicateOf };
+  refresh();
+  return {};
+}
+
+/** Récupère la page de l'annonce, seulement si le site l'autorise. */
+export async function fetchOfferAction(offerId: string): Promise<{ error?: string }> {
+  const user = await requireUser();
+  if (!Id.safeParse(offerId).success) return { error: "Offre inconnue." };
+  const r = await fetchOfferText(getOfferDeps(), user.id, offerId);
+  if (!r.ok) return { error: r.error };
+  refresh();
+  return {};
 }

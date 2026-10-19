@@ -21,6 +21,12 @@ jobs:
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+      # Serveur IMAP de test pour les alertes e-mail (npm run test:imap).
+      greenmail:
+        image: greenmail/standalone:2.1.5
+        env:
+          GREENMAIL_OPTS: "-Dgreenmail.setup.test.all -Dgreenmail.hostname=0.0.0.0 -Dgreenmail.users=alertes:mot-de-passe-app@localhost"
+        ports: ["3143:3143"]
     env:
       DATABASE_URL_TEST: postgres://postgres@localhost:5432/jobpilot_test
       DATABASE_URL: postgres://postgres@localhost:5432/jobpilot_e2e
@@ -39,6 +45,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - name: Alertes e-mail contre un vrai serveur IMAP (GreenMail)
+        run: npm run test:imap
       - name: Migrations apply on an empty database
         run: |
           psql -h localhost -U postgres -c "create database jobpilot_migrations"

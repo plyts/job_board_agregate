@@ -69,6 +69,9 @@ Chaque module expose une API TypeScript (`src/modules/<nom>/index.ts`) ; les aut
 | `match.compute` | Matching demandé, ou recontrôle d'une version de CV (`cv_version_id`) | Clé = matching | idem |
 | `cv.suggest` | Demande de suggestions dans l'éditeur | Clé = brouillon | idem ; sans fournisseur autorisé et consenti pour le CV, échec immédiat et message clair (l'éditeur reste utilisable à la main) |
 | `letter.draft` | « Proposer une lettre » sur la fiche candidature | Clé = candidature | idem ; proposition sourcée, passée au contrôle des faits de la lettre, reprise seulement par l'utilisateur ; sans fournisseur consenti, échec immédiat (la lettre se rédige à la main) |
+| `sources.tick` | Toutes les 15 min | Clé unique | Met en file les boîtes d'alertes actives et les recherches enregistrées arrivées à échéance |
+| `sources.mailbox` | Planificateur, ou « Lire les alertes maintenant » | Clé = source | 1 nouvel essai ; lecture seule, reprise au dernier UID ; erreurs dans `sync_runs` et sur la source |
+| `sources.search` | Planificateur, ou « Lancer maintenant » | Clé = recherche | 1 nouvel essai ; une source en échec n'empêche pas les autres |
 | `backup.run` | Chaque jour à 03:15 (`APP_TIME_ZONE`), ou « Sauvegarder maintenant » | Clé = « backup » : une seule à la fois ; échéance manquée rattrapée une fois | 1 nouvel essai après 10 min ; chaque exécution journalisée dans `backup_runs` |
 | *(pg-boss)* expiration | Continu | — | Une tâche active au-delà de `expireInSeconds` est reprise ou marquée en échec par pg-boss : pas de watchdog maison |
 | `reminders.due` | Tous les matins | — | — |

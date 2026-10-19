@@ -2,8 +2,10 @@ import type { PgBoss } from "pg-boss";
 import type { Pool } from "pg";
 import { z } from "zod";
 import type { Db } from "@/db/client";
+import type { TxContext } from "@/db/transaction";
 import { analyzeOffer, findStalledOffers } from "@/modules/analysis";
 import { draftLetter, findStalledLetters } from "@/modules/applications";
+import { dueWork, purgeSearchRuns, runSavedSearch, syncEmailAlerts } from "@/modules/sources";
 import { findStalledSuggestions, generateSuggestions } from "@/modules/cv";
 import { deleteExpiredSessions, purgeLoginAttempts } from "@/modules/identity";
 import { computeMatch, findStalledMatches } from "@/modules/matching";
@@ -15,6 +17,9 @@ import {
   extractionJobOptions,
   letterJobOptions,
   logger,
+  mailboxJobOptions,
+  savedSearchJobOptions,
+  transactionDb,
   matchJobOptions,
   runBackup,
   SCHEDULES,
@@ -33,6 +38,8 @@ const MatchJob = z.object({ matchId: z.uuid(), userId: z.uuid() });
 const SuggestJob = z.object({ draftId: z.uuid(), userId: z.uuid() });
 const LetterJob = z.object({ applicationId: z.uuid(), userId: z.uuid() });
 const BackupJob = z.object({ trigger: z.enum(["schedule", "manual"]) });
+const MailboxJob = z.object({ sourceId: z.uuid(), userId: z.uuid() });
+const SearchJob = z.object({ searchId: z.uuid(), userId: z.uuid() });
 
 export type WorkerDeps = {
   db: Db;
@@ -147,6 +154,39 @@ export async function startWorker(boss: PgBoss, deps: WorkerDeps): Promise<void>
     else logger.error({ error: run.error }, "sauvegarde en échec");
   });
 
+  // Sources connectées : chaque offre importée part en analyse dans la transaction qui la crée.
+  const sourcesDeps = deps.storage
+    ? {
+        db: deps.db,
+        pool: deps.pool,
+        storage: deps.storage,
+        enqueueAnalysis: async (tx: TxContext, job: { offerId: string; userId: string }) => {
+          await boss.send("offer.analyze", job, { ...analysisJobOptions(job.offerId), db: transactionDb(tx.client) });
+        },
+      }
+    : null;
+  if (sourcesDeps) {
+    await boss.work("sources.mailbox", { batchSize: 1, includeMetadata: true, ...pace }, async ([job]) => {
+      if (!job) return;
+      const data = MailboxJob.safeParse(job.data);
+      if (!data.success) return;
+      const run = await syncEmailAlerts(sourcesDeps, data.data.userId, data.data.sourceId);
+      logger.info({ sourceId: data.data.sourceId, status: run?.status, created: run?.created }, "alertes e-mail lues");
+    });
+    await boss.work("sources.search", { batchSize: 1, includeMetadata: true, ...pace }, async ([job]) => {
+      if (!job) return;
+      const data = SearchJob.safeParse(job.data);
+      if (!data.success) return;
+      const run = await runSavedSearch(sourcesDeps, data.data.userId, data.data.searchId);
+      logger.info({ searchId: data.data.searchId, status: run?.status, created: run?.created }, "recherche enregistrée exécutée");
+    });
+    await boss.work("sources.tick", async () => {
+      const due = await dueWork(deps.db);
+      for (const m of due.mailboxes) await boss.send("sources.mailbox", m, mailboxJobOptions(m.sourceId));
+      for (const s of due.searches) await boss.send("sources.search", s, savedSearchJobOptions(s.searchId));
+    });
+  }
+
   await boss.work("offer.resume", async () => {
     const olderThan = new Date(Date.now() - 15 * 60 * 1000);
     const stalled = await findStalledOffers(deps.db, olderThan);
@@ -158,6 +198,7 @@ export async function startWorker(boss: PgBoss, deps: WorkerDeps): Promise<void>
     // Conservation limitée (RGPD) : sessions expirées, tentatives de connexion, CV importé après validation.
     await deleteExpiredSessions(deps.db);
     await closeInterruptedBackups(deps.db);
+    await purgeSearchRuns(deps.db);
     await purgeLoginAttempts(deps.db);
     if (deps.storage) {
       const purged = await purgeImportedSources({ db: deps.db, storage: deps.storage }, sourceRetentionDays());

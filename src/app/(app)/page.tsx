@@ -228,22 +228,25 @@ export default async function DashboardPage(props: PageProps<"/">) {
                 </tr>
               </thead>
               <tbody>
-                {d.sources.map((s) => (
-                  <tr key={s.source} className="border-t border-border">
-                    <th scope="row" className="py-2.5 pr-2 text-left font-medium">
-                      Import manuel · {OFFER_SOURCE_LABELS[s.source]}
-                    </th>
-                    <td className="px-2 py-2.5 text-right tabular-nums">{s.collected}</td>
-                    <td className="px-2 py-2.5 text-right tabular-nums">{s.duplicates}</td>
-                    <td className="py-2.5 pl-2 text-right tabular-nums">{s.qualified}</td>
-                  </tr>
-                ))}
+                {d.sources
+                  // Origines connectées affichées seulement quand elles ont servi sur la période.
+                  .filter((s) => ["url", "text", "file"].includes(s.source) || s.collected > 0 || s.qualified > 0)
+                  .map((s) => (
+                    <tr key={s.source} className="border-t border-border">
+                      <th scope="row" className="py-2.5 pr-2 text-left font-medium">
+                        {["url", "text", "file"].includes(s.source) ? `Import manuel · ${OFFER_SOURCE_LABELS[s.source]}` : OFFER_SOURCE_LABELS[s.source]}
+                      </th>
+                      <td className="px-2 py-2.5 text-right tabular-nums">{s.collected}</td>
+                      <td className="px-2 py-2.5 text-right tabular-nums">{s.duplicates}</td>
+                      <td className="py-2.5 pl-2 text-right tabular-nums">{s.qualified}</td>
+                    </tr>
+                  ))}
                 <tr className="border-t border-border text-muted-foreground">
                   <th scope="row" className="py-2.5 pr-2 text-left font-medium">
-                    Connecteurs officiels (V2)
+                    Sources connectées
                   </th>
-                  <td colSpan={3} className="py-2.5 pl-2 text-right font-mono text-[11px] uppercase tracking-[0.04em]">
-                    Non connectés
+                  <td colSpan={3} className="py-2.5 pl-2 text-right text-[13px]">
+                    <Link href="/sources">Gérer les sources</Link>
                   </td>
                 </tr>
               </tbody>

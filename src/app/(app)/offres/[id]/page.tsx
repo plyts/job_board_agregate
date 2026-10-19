@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OfferAnalysisView } from "@/components/offers/OfferAnalysisView";
-import { OFFER_SOURCE_LABELS, OFFER_STATUS_LABELS } from "@/components/offers/status";
+import { CompleteOfferPanel } from "@/components/offers/CompleteOfferPanel";
+import { BOARD_LABELS, OFFER_SOURCE_LABELS, OFFER_STATUS_LABELS } from "@/components/offers/status";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -16,6 +17,7 @@ import { getCurrentAnalysis } from "@/modules/analysis";
 import { getActiveApplication } from "@/modules/applications";
 import { getCurrentMatch } from "@/modules/matching";
 import { getOffer } from "@/modules/offers";
+import { sightingsOf } from "@/modules/sources";
 import { decideOfferAction, retryAnalysisAction } from "./actions";
 import { createApplicationAction } from "../../candidatures/actions";
 
@@ -34,11 +36,15 @@ export default async function OfferPage(props: PageProps<"/offres/[id]">) {
   const db = getDb();
   const offer = await getOffer(db, user.id, id);
   if (!offer) notFound();
-  const [current, match, application] = await Promise.all([
+  const [current, match, application, sightings] = await Promise.all([
     getCurrentAnalysis(db, user.id, offer.id),
     getCurrentMatch(db, user.id, offer.id),
     getActiveApplication(db, user.id, offer.id),
+    sightingsOf(db, user.id, offer.id),
   ]);
+  // LinkedIn et Indeed interdisent la récupération automatique : le texte se colle.
+  const host = URL.canParse(offer.originalUrl ?? "") ? new URL(offer.originalUrl!).hostname.toLowerCase() : "";
+  const fetchAllowed = Boolean(host) && !/(^|\.)(linkedin\.com|indeed\.(com|fr))$/.test(host);
   const status = OFFER_STATUS_LABELS[offer.status];
   const decided = offer.status === "analyzed" || offer.status === "qualified" || offer.status === "discarded";
 
@@ -99,12 +105,33 @@ export default async function OfferPage(props: PageProps<"/offres/[id]">) {
           {offer.publishedAt ? <Chip>Publiée le {dateFmt.format(offer.publishedAt)}</Chip> : null}
           <Chip>Importée le {dateFmt.format(offer.createdAt)}</Chip>
         </div>
+        {sightings.length ? (
+          <p className="pt-1 text-[13px] text-muted-foreground">
+            Trouvée sur :{" "}
+            {sightings.map((s, i) => (
+              <span key={s.id}>
+                {i ? ", " : ""}
+                {s.url ? (
+                  <a href={s.url} target="_blank" rel="noopener noreferrer nofollow">
+                    {BOARD_LABELS[s.board] ?? s.board}
+                  </a>
+                ) : (
+                  (BOARD_LABELS[s.board] ?? s.board)
+                )}{" "}
+                ({dateFmt.format(s.firstSeenAt)}
+                {s.origin === "email_alert" ? ", alerte e-mail" : ""})
+              </span>
+            ))}
+          </p>
+        ) : null}
         {offer.originalUrl ? (
           <a href={offer.originalUrl} target="_blank" rel="noopener noreferrer nofollow" className="pt-1 text-sm font-semibold text-accent">
             Voir l&apos;annonce originale
           </a>
         ) : null}
       </PageHeader>
+
+      {offer.status === "incomplete" ? <CompleteOfferPanel offerId={offer.id} url={offer.originalUrl} fetchAllowed={fetchAllowed} /> : null}
 
       {current ? (
         <OfferAnalysisView

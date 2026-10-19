@@ -2,7 +2,11 @@
 
 ## Worker
 
-`npm run worker` traite les files (analyse d'offre, extraction de CV, matching, suggestions de CV, lettre proposée, sauvegardes) et le balayage planifié des tâches bloquées. Déploiement : `docs/DEPLOIEMENT.md`.
+`npm run worker` traite les files et le balayage planifié des tâches bloquées :
+- analyse d'offre, extraction de CV, matching ;
+- suggestions de CV, lettre proposée ;
+- sources connectées : alertes e-mail toutes les 15 minutes, recherches enregistrées ;
+- sauvegardes. Déploiement : `docs/DEPLOIEMENT.md`.
 
 | Variable | Défaut | Rôle |
 |---|---|---|

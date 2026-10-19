@@ -21,6 +21,11 @@ export function boardUser(project: string) {
   return { email: `e2e-colonnes-${project}@jobpilot.test`, displayName: "Compte colonnes", password: "motdepasse-e2e-solide" };
 }
 
+/** Compte du scénario « sources » (un par projet) : ses offres importées ne se mêlent pas à celles des autres scénarios. */
+export function sourcesUser(project: string) {
+  return { email: `e2e-sources-${project}@jobpilot.test`, displayName: "Compte sources", password: "motdepasse-e2e-solide" };
+}
+
 /** Comptes supprimés par le scénario « Mon compte » (un par projet Playwright). */
 export function deletableUser(project: string) {
   return { email: `e2e-suppression-${project}@jobpilot.test`, displayName: "Compte jetable", password: "motdepasse-e2e-solide" };

@@ -198,14 +198,18 @@ export async function importOffer(deps: OfferDeps, userId: string, input: OfferI
   }
 }
 
-export const OFFER_STATUSES = ["queued", "analyzing", "analyzed", "failed", "qualified", "discarded"] as const;
+export const OFFER_STATUSES = ["incomplete", "queued", "analyzing", "analyzed", "failed", "qualified", "discarded"] as const;
 export type OfferStatus = (typeof OFFER_STATUSES)[number];
 
-export type OfferListFilters = { q?: string; status?: OfferStatus };
+export const OFFER_ORIGINS = ["url", "text", "file", "france_travail", "adzuna", "career_page", "email_alert"] as const;
+export type OfferOrigin = (typeof OFFER_ORIGINS)[number];
+
+export type OfferListFilters = { q?: string; status?: OfferStatus; origin?: OfferOrigin };
 
 export async function listOffers(db: Db, userId: string, filters: OfferListFilters = {}, limit = 100) {
   const conditions: SQL[] = [eq(jobOffers.userId, userId)];
   if (filters.status) conditions.push(eq(jobOffers.status, filters.status));
+  if (filters.origin) conditions.push(eq(jobOffers.source, filters.origin));
   const q = filters.q?.trim();
   if (q) {
     const pattern = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;

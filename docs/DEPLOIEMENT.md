@@ -20,6 +20,7 @@ Dans `.env`, au minimum :
 |---|---|
 | `POSTGRES_PASSWORD` | Mot de passe de la base (longue chaîne aléatoire) |
 | `BACKUP_PASSPHRASE` | Phrase de passe des archives. **À conserver aussi hors de la VM** : sans elle, aucune restauration n'est possible |
+| `JOBPILOT_SECRETS_KEY` | Clé de chiffrement des identifiants des sources (`openssl rand -base64 32`) ; à conserver avec la phrase de passe des sauvegardes |
 | `APP_TIME_ZONE` | Fuseau du tableau de bord et de l'heure des sauvegardes (`Europe/Paris` par défaut) |
 | `RCLONE_CONFIG_HORSSITE_*`, `BACKUP_COPY_COMMAND` | Copie hors site de chaque archive (voir ci-dessous) |
 | Clés IA | Facultatives (voir `.env.example`) ; le CV ne part que vers un fournisseur autorisé **et** consenti |
