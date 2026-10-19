@@ -11,6 +11,7 @@ import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
 import { cn } from "@/lib/cn";
 import { localDate } from "@/modules/applications";
+import { triageCounts } from "@/modules/matching";
 import { dailyGoal, getDashboard, type Period } from "@/modules/metrics";
 import { Glyph } from "@/components/ui/Glyph";
 
@@ -59,7 +60,7 @@ export default async function DashboardPage(props: PageProps<"/">) {
   const sp = await props.searchParams;
   const period: Period = sp.periode === "7j" ? "week" : "day";
   const today = localDate(new Date(), TZ);
-  const d = await getDashboard(getDb(), user.id, { period, today, timeZone: TZ, dailyGoal: dailyGoal() });
+  const [d, triage] = await Promise.all([getDashboard(getDb(), user.id, { period, today, timeZone: TZ, dailyGoal: dailyGoal() }), triageCounts(getDb(), user.id)]);
   const max = Math.max(1, d.funnel.collected, ...Object.values(d.funnel));
   const pct = d.goal.target ? Math.min(100, Math.round((d.goal.processed / d.goal.target) * 100)) : 0;
   const rate = (v: number | null) => (v === null ? "—" : `${v} %`);
@@ -101,7 +102,7 @@ export default async function DashboardPage(props: PageProps<"/">) {
         </p>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Panel aria-label="Objectif" className="flex flex-col gap-3.5">
           <h2 className="text-sm font-semibold text-muted-foreground">Objectif : offres traitées</h2>
           <div className="flex items-baseline gap-2">
@@ -169,7 +170,7 @@ export default async function DashboardPage(props: PageProps<"/">) {
         </div>
       </Panel>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Panel aria-label="À faire maintenant" className="flex flex-col gap-2">
           <h2 className="text-lg font-semibold tracking-tight">À faire maintenant</h2>
           <ul className="flex flex-col">
@@ -191,6 +192,11 @@ export default async function DashboardPage(props: PageProps<"/">) {
                 {t.title} : CV finalisé, à envoyer
               </Todo>
             ))}
+            {triage.toDecide ? (
+              <Todo tag="À trier" tone="accent" href="/offres/a-traiter" cta="Trier">
+                {triage.toDecide} offre{triage.toDecide > 1 ? "s" : ""} analysée{triage.toDecide > 1 ? "s" : ""} à qualifier ou écarter, classée{triage.toDecide > 1 ? "s" : ""} par score
+              </Todo>
+            ) : null}
             {d.todo.withoutAction ? (
               <Todo tag="Sans action" tone="signal" href="/candidatures?sansaction=1" cta="Planifier">
                 {d.todo.withoutAction} candidature{d.todo.withoutAction > 1 ? "s" : ""} active{d.todo.withoutAction > 1 ? "s" : ""} sans prochaine action
@@ -202,7 +208,7 @@ export default async function DashboardPage(props: PageProps<"/">) {
               </Todo>
             ) : null}
           </ul>
-          {!d.todo.overdue.length && !d.todo.dueToday.length && !d.todo.ready.length && !d.todo.withoutAction && !d.todo.failedAnalyses ? (
+          {!d.todo.overdue.length && !d.todo.dueToday.length && !d.todo.ready.length && !d.todo.withoutAction && !d.todo.failedAnalyses && !triage.toDecide ? (
             <p className="text-sm text-muted-foreground">Rien d&apos;urgent : aucune relance due, aucune candidature prête en attente.</p>
           ) : null}
         </Panel>

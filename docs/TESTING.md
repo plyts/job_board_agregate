@@ -22,7 +22,10 @@ Priorité aux comportements critiques, pas à la couverture.
 - offres, analyse, matching ;
 - éditeur de CV, recontrôle ;
 - candidatures (Kanban, tableau, calendrier, par entreprise), fiche candidature ;
-- profil maître, fournisseurs IA.
+- profil maître, fournisseurs IA ;
+- sources, recherche, offres à traiter.
+
+Chaque écran audité doit aussi tenir dans la largeur de l'écran sans défilement horizontal (WCAG 1.4.10, que axe ne vérifie pas). Ce contrôle a trouvé le tableau de bord à 474 px sur un téléphone de 412 px (grille élargie par le tableau « Par source »), corrigé le 19/10/2026.
 
 Le passage est fait sur ordinateur et sur mobile. Défauts trouvés et corrigés :
 - `aria-pressed` placé sur des liens ;

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { createDb, createPool } from "../../src/db/client";
-import { loginAttempts, users } from "../../src/db/schema";
+import { loginAttempts, matchAnalyses, users } from "../../src/db/schema";
 import { runMigrations } from "../../src/db/migrate";
 import { analyzeOffer } from "../../src/modules/analysis";
 import { createUser, findUserByEmail } from "../../src/modules/identity";
@@ -15,7 +15,7 @@ import { saveDraft, startDraft, validateDraft } from "../../src/modules/profile"
 import { toProfileContent } from "../../src/modules/profile/extract";
 import { createApplication } from "../../src/modules/applications";
 import { startFakeSources } from "./fake-sources";
-import { analyzedOfferTitle, applicationOfferTitle, boardUser, deletableUser, E2E_JUDGEMENT, E2E_PROFILE_USER, E2E_PROJECTS, E2E_USER, sourcesUser } from "./fixtures";
+import { analyzedOfferTitle, applicationOfferTitle, boardUser, deletableUser, E2E_JUDGEMENT, E2E_PROFILE_USER, E2E_PROJECTS, E2E_USER, sourcesUser, triageOfferTitle, triageUser } from "./fixtures";
 
 /** Prépare la base e2e : migrations, compte de test et une offre déjà analysée (faux client IA, aucun appel payant). */
 export default async function globalSetup() {
@@ -29,7 +29,8 @@ export default async function globalSetup() {
     const disposable = E2E_PROJECTS.map(deletableUser);
     const boards = E2E_PROJECTS.map(boardUser);
     const sourceAccounts = E2E_PROJECTS.map(sourcesUser);
-    for (const account of [E2E_USER, E2E_PROFILE_USER, ...disposable, ...boards, ...sourceAccounts]) {
+    const triageAccounts = E2E_PROJECTS.map(triageUser);
+    for (const account of [E2E_USER, E2E_PROFILE_USER, ...disposable, ...boards, ...sourceAccounts, ...triageAccounts]) {
       const previous = await findUserByEmail(db, account.email);
       if (previous) await db.delete(users).where(eq(users.id, previous.id));
       // Les échecs volontaires des scénarios précédents ne doivent pas verrouiller le compte.
@@ -58,6 +59,29 @@ export default async function globalSetup() {
     const validated = await validateDraft(db, user.id);
     if (!validated.ok) throw new Error(`Préparation e2e : ${validated.problems.join(" ; ")}`);
     const lumio = content.experiences[0]!.id;
+
+    // « À traiter » : profil validé, deux offres notées (83 et 41) et une offre analysée avant tout matching.
+    for (const project of E2E_PROJECTS) {
+      const owner = await createUser(db, triageUser(project));
+      await startDraft(db, owner.id);
+      await saveDraft(db, owner.id, content);
+      const ok = await validateDraft(db, owner.id);
+      if (!ok.ok) throw new Error(`Préparation e2e : ${ok.problems.join(" ; ")}`);
+      for (const [which, score] of [["bas", 41], ["haut", 83], ["sans", null]] as const) {
+        const imported = await importOffer({ db, pool, storage: new LocalFsStorage("/tmp/jobpilot-e2e-unused"), enqueueAnalysis: async () => {} }, owner.id, {
+          kind: "text",
+          text: `${OFFER_TEXT}\nTri ${which} ${project}.`,
+        });
+        if (!imported.ok) throw new Error(`Préparation e2e : ${imported.message}`);
+        const llm = new FakeLlmClient("modele-e2e", undefined, "local").respondWith({ ...EXTRACTION, title: triageOfferTitle(project, which) });
+        await analyzeOffer({ db, pool, llm, budgetUsd: 1000 }, { offerId: imported.offerId, userId: owner.id });
+        if (score === null) continue;
+        const requested = await requestMatch({ db, pool, enqueueMatch: async () => {} }, owner.id, imported.offerId);
+        if (!requested.ok) throw new Error(`Préparation e2e : ${requested.message}`);
+        await computeMatch({ db, pool, llm: null, today: new Date("2026-10-18T12:00:00Z") }, { matchId: requested.matchId, userId: owner.id });
+        await db.update(matchAnalyses).set({ score }).where(eq(matchAnalyses.id, requested.matchId));
+      }
+    }
 
     // Une offre analysée par projet Playwright : les scénarios qui la modifient ne se gênent pas.
     for (const project of E2E_PROJECTS) {

@@ -26,6 +26,15 @@ export function sourcesUser(project: string) {
   return { email: `e2e-sources-${project}@jobpilot.test`, displayName: "Compte sources", password: "motdepasse-e2e-solide" };
 }
 
+/** Compte du scénario « À traiter » (un par projet) : offres classées par score, décisions sans effet sur les autres scénarios. */
+export function triageUser(project: string) {
+  return { email: `e2e-tri-${project}@jobpilot.test`, displayName: "Compte tri", password: "motdepasse-e2e-solide" };
+}
+
+export function triageOfferTitle(project: string, which: "haut" | "bas" | "sans") {
+  return { haut: "Data Engineer très proche", bas: "Data Engineer éloigné", sans: "Data Engineer sans score" }[which] + ` (${project})`;
+}
+
 /** Comptes supprimés par le scénario « Mon compte » (un par projet Playwright). */
 export function deletableUser(project: string) {
   return { email: `e2e-suppression-${project}@jobpilot.test`, displayName: "Compte jetable", password: "motdepasse-e2e-solide" };

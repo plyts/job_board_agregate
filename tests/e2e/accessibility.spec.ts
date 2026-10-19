@@ -7,6 +7,9 @@ const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 async function audit(page: Page, name: string) {
   const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze();
   const summary = violations.map((v) => `${name} · ${v.id} (${v.impact}) : ${v.help} → ${v.nodes.map((n) => n.target.join(" ")).slice(0, 3).join(" | ")}`);
+  // WCAG 1.4.10 (redistribution), non couvert par axe : la page tient dans la largeur de l'écran, sans défilement horizontal.
+  const width = await page.evaluate(() => document.documentElement.scrollWidth);
+  if (width > page.viewportSize()!.width) summary.push(`${name} · reflow : la page mesure ${width} px pour un écran de ${page.viewportSize()!.width} px`);
   return summary;
 }
 
@@ -74,6 +77,8 @@ test("écrans du parcours critique : aucune violation WCAG 2.2 AA détectée", a
   found.push(...(await audit(page, "sources")));
   await page.goto("/recherche");
   found.push(...(await audit(page, "recherche")));
+  await page.goto("/offres/a-traiter");
+  found.push(...(await audit(page, "à traiter")));
 
   expect(found).toEqual([]);
 });

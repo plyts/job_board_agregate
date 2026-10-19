@@ -8,7 +8,7 @@ import { draftLetter, findStalledLetters } from "@/modules/applications";
 import { dueWork, purgeSearchRuns, runSavedSearch, syncEmailAlerts } from "@/modules/sources";
 import { findStalledSuggestions, generateSuggestions } from "@/modules/cv";
 import { deleteExpiredSessions, purgeLoginAttempts } from "@/modules/identity";
-import { computeMatch, findStalledMatches } from "@/modules/matching";
+import { autoMatch, computeMatch, findStalledMatches, type MatchRequestDeps } from "@/modules/matching";
 import {
   analysisJobOptions,
   BACKUP_JOB_OPTIONS,
@@ -68,6 +68,14 @@ export function workerPace(env: Record<string, string | undefined> = process.env
 /** Branche les traitements sur les files. Sans client IA, les analyses restent en file (aucun échec artificiel). */
 export async function startWorker(boss: PgBoss, deps: WorkerDeps): Promise<void> {
   const pace = workerPace();
+  // Matching mis en file dans la même transaction que sa ligne (comme depuis l'interface).
+  const matchRequests: MatchRequestDeps = {
+    db: deps.db,
+    pool: deps.pool,
+    enqueueMatch: async (tx: TxContext, job) => {
+      await boss.send("match.compute", job, { ...matchJobOptions(job.matchId), db: transactionDb(tx.client) });
+    },
+  };
   if (deps.llm) {
     const llm = deps.llm;
     await boss.work("offer.analyze", { batchSize: 1, includeMetadata: true, ...pace }, async ([job]) => {
@@ -82,6 +90,14 @@ export async function startWorker(boss: PgBoss, deps: WorkerDeps): Promise<void>
         isFinal: job.retryCount >= job.retryLimit,
       });
       logger.info({ jobId: job.id, offerId: data.data.offerId, outcome: outcome.kind, ms: Date.now() - started }, "analyse d'offre");
+      if (outcome.kind === "analyzed") {
+        // Score sans clic : la liste « À traiter » classe les offres dès leur analyse. Un échec ici ne refait pas l'analyse.
+        const matched = await autoMatch(matchRequests, data.data.userId, data.data.offerId).catch((err: unknown) => {
+          logger.error({ offerId: data.data.offerId, err: err instanceof Error ? err.message : String(err) }, "matching automatique non demandé");
+          return "error";
+        });
+        logger.info({ offerId: data.data.offerId, matched }, "matching automatique");
+      }
     });
     await boss.work("profile.extract", { batchSize: 1, includeMetadata: true, ...pace }, async ([job]) => {
       if (!job) return;

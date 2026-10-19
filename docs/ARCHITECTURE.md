@@ -66,7 +66,7 @@ Chaque module expose une API TypeScript (`src/modules/<nom>/index.ts`) ; les aut
 | *(synchrone)* récupération d'URL | Import par URL | URL canonique vérifiée avant tout appel réseau | Faite pendant la requête (5 s max) pour un retour immédiat ; refus robots/CGU/adresse interne → l'utilisateur colle le texte, l'URL est conservée |
 | `offer.analyze` | Offre nouvelle | Clé = `sha256(texte normalisé) + version du schéma + version du prompt` ; résultat en cache | 3 essais, temporisation 30 s / 2 min / 10 min, puis « échec » visible |
 | `profile.extract` | Import de CV | Clé = empreinte du fichier | idem |
-| `match.compute` | Matching demandé, ou recontrôle d'une version de CV (`cv_version_id`) | Clé = matching | idem |
+| `match.compute` | Matching demandé, lancé après chaque analyse réussie si un profil est validé (`autoMatch` : poids du matching courant conservés, rien si l'analyse et le profil n'ont pas changé), ou recontrôle d'une version de CV (`cv_version_id`) | Clé = matching | idem |
 | `cv.suggest` | Demande de suggestions dans l'éditeur | Clé = brouillon | idem ; sans fournisseur autorisé et consenti pour le CV, échec immédiat et message clair (l'éditeur reste utilisable à la main) |
 | `letter.draft` | « Proposer une lettre » sur la fiche candidature | Clé = candidature | idem ; proposition sourcée, passée au contrôle des faits de la lettre, reprise seulement par l'utilisateur ; sans fournisseur consenti, échec immédiat (la lettre se rédige à la main) |
 | `sources.tick` | Toutes les 15 min | Clé unique | Met en file les boîtes d'alertes actives et les recherches enregistrées arrivées à échéance |

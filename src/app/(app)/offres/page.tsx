@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/lib/auth/dal";
+import { triageCounts } from "@/modules/matching";
 import { listOffers, OFFER_ORIGINS, OFFER_STATUSES, type OfferOrigin, type OfferStatus } from "@/modules/offers";
 
 export const metadata: Metadata = { title: "Offres" };
@@ -21,7 +22,7 @@ export default async function OffersPage(props: PageProps<"/offres">) {
   const q = typeof sp.q === "string" ? sp.q.slice(0, 100) : "";
   const status = typeof sp.statut === "string" && (OFFER_STATUSES as readonly string[]).includes(sp.statut) ? (sp.statut as OfferStatus) : undefined;
   const origin = typeof sp.origine === "string" && (OFFER_ORIGINS as readonly string[]).includes(sp.origine) ? (sp.origine as OfferOrigin) : undefined;
-  const offers = await listOffers(getDb(), user.id, { q, status, origin });
+  const [offers, triage] = await Promise.all([listOffers(getDb(), user.id, { q, status, origin }), triageCounts(getDb(), user.id)]);
   const filtered = Boolean(q || status || origin);
 
   return (
@@ -34,6 +35,11 @@ export default async function OffersPage(props: PageProps<"/offres">) {
           <h2 id="list-title" className="flex-1 text-lg font-semibold tracking-tight">
             Toutes les offres <span className="font-mono text-sm font-normal text-muted-foreground">{offers.length}</span>
           </h2>
+          {triage.toDecide ? (
+            <Link href="/offres/a-traiter" className="text-sm font-semibold">
+              À traiter, par score ({triage.toDecide})
+            </Link>
+          ) : null}
         </div>
         <form method="get" role="search" className="flex flex-wrap gap-3 rounded-xl border border-border bg-panel p-3">
           <label className="min-w-0 flex-[1_1_240px]">
