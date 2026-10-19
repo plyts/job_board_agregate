@@ -77,6 +77,8 @@ Aucune API réelle n'est appelée par les tests :
 - **intégration** (`tests/integration/sources.test.ts`) : un faux serveur HTTP local joue France Travail (jeton OAuth2, pages 206), Adzuna et Greenhouse ; recherche combinée et fusion des doublons, import, recherche enregistrée avec plafond, offre vue sur plusieurs sites, export sans secret, purge des recherches ;
 - **e2e** (`tests/e2e/sources.spec.ts`) : connexion testée (identifiants refusés puis acceptés), recherche combinée, import, offre à compléter, recherche enregistrée ; le faux serveur (`tests/e2e/fake-sources.ts`, port 3199) est démarré par `global-setup.ts`.
 
+`tests/integration/sources-check.test.ts` couvre `npm run sources:check` contre un faux serveur : format conforme ou changé, paramètre refusé, mots-clés combinés en « ou ».
+
 ### Alertes e-mail contre un vrai serveur IMAP
 
 `npm run test:imap` lance `tests/imap/` contre GreenMail, un serveur de messagerie de test :

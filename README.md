@@ -26,6 +26,8 @@ IA : renseigner au moins un fournisseur dans `.env.local` (par exemple `GROQ_API
 | `npm run test:e2e` | Parcours Playwright, bureau et mobile (base `jobpilot_e2e`) |
 | `npm run db:generate` | Génère une migration après modification de `src/db/schema` |
 | `npm run llm:check` | Vérifie chaque fournisseur IA configuré (clé, modèle, sortie JSON) |
+| `npm run sources:check [-- --email moi@exemple.fr]` | Confronte les connecteurs France Travail et Adzuna aux vraies API (format des offres, mots-clés, codes postaux, filtres) |
+| `npm run test:imap` | Lecture des alertes e-mail contre un vrai serveur IMAP (GreenMail, voir `docs/TESTING.md`) |
 | `npm run eval:offers -- --yes [--provider groq]` | Mesure la qualité d'extraction sur le jeu d'évaluation, par fournisseur |
 
 ## Principes non négociables

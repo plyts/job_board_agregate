@@ -79,6 +79,21 @@ function secretOf(userId: string, source: JobSource): Record<string, string> {
   return decryptSecret(source.secret, context(userId, source.key));
 }
 
+/** Identifiants des API connectées par l'utilisateur, déchiffrés : pour `npm run sources:check` uniquement, jamais affichés. */
+export async function storedApiCredentials(db: Db, userId: string) {
+  const rows = await db
+    .select()
+    .from(jobSources)
+    .where(and(eq(jobSources.userId, userId), inArray(jobSources.kind, ["france_travail", "adzuna"])));
+  const out: { franceTravail?: { clientId: string; clientSecret: string }; adzuna?: { appId: string; appKey: string } } = {};
+  for (const r of rows) {
+    const s = secretOf(userId, r);
+    if (r.kind === "france_travail") out.franceTravail = { clientId: s.clientId!, clientSecret: s.clientSecret! };
+    else out.adzuna = { appId: s.appId!, appKey: s.appKey! };
+  }
+  return out;
+}
+
 /** Connecteur de recherche d'une source (France Travail, Adzuna, page carrières). */
 export function searchConnector(deps: SourcesDeps, userId: string, source: JobSource): SearchConnector | null {
   const ep = endpointsOf(deps);

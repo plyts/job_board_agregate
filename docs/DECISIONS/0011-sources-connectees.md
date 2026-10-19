@@ -40,7 +40,7 @@ Quatre types de sources, chacune dans un connecteur (`src/modules/sources`). Le 
 - Les résultats sont fusionnés : une même annonce n'apparaît qu'une fois, avec la liste des jobboards où elle a été vue.
   - Même URL, y compris l'URL du partenaire donnée par France Travail.
   - Ou même intitulé, entreprise et ville, sauf deux identifiants différents d'un même site (intérim, postes multiples).
-- Mots-clés : une virgule sépare des variantes (5 au plus), cherchées chacune par une requête ; les résultats sont réunis. Les API combinent leurs mots-clés en « et » (à vérifier pour France Travail).
+- Mots-clés : une virgule sépare des variantes (5 au plus), cherchées chacune par une requête ; les résultats sont réunis. Les API combinent leurs mots-clés en « et » (à vérifier pour France Travail avec `npm run sources:check`).
 - Lieu : ville, code postal (jamais lu comme code INSEE) ou département. Les pages carrières ne reconnaissent d'un département que son nom, son code et sa préfecture.
 - Les offres déjà connues sont signalées. L'import est sélectif.
 
@@ -70,5 +70,6 @@ Quatre types de sources, chacune dans un connecteur (`src/modules/sources`). Le 
   - Adzuna : quotas ;
   - ATS : adresses des flux.
   - Aucune de ces API n'a été appelée réellement : tests avec de faux serveurs, et un vrai serveur IMAP (GreenMail).
+  - `npm run sources:check` confronte ces hypothèses aux vraies API dès que des identifiants existent : jeton, champs lus par les normaliseurs, pagination, combinaison des mots-clés (déduite des totaux), codes postaux du référentiel, paramètres de filtre.
 - `JOBPILOT_SECRETS_KEY` devient nécessaire pour connecter une source. La perdre impose de ressaisir les identifiants ; les offres ne sont pas touchées.
 - Les recherches ponctuelles et leurs résultats sont effacés après 30 jours.

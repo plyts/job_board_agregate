@@ -27,7 +27,8 @@ type Endpoints = { tokenUrl: string; apiUrl: string };
 
 const tokens = new Map<string, { token: string; expiresAt: number }>();
 
-async function accessToken(creds: FranceTravailCredentials, endpoints: Endpoints): Promise<string> {
+/** Jeton d'accès OAuth2 (client credentials), gardé en mémoire jusqu'à 30 s avant son expiration. */
+export async function franceTravailToken(creds: FranceTravailCredentials, endpoints: Endpoints = FRANCE_TRAVAIL): Promise<string> {
   const cached = tokens.get(creds.clientId);
   if (cached && cached.expiresAt > Date.now() + 30_000) return cached.token;
   const res = await requestJson(endpoints.tokenUrl, {
@@ -175,7 +176,7 @@ export function normalizeFranceTravail(o: FtOffer): IncomingOffer | null {
 }
 
 export function franceTravailConnector(creds: FranceTravailCredentials, endpoints: Endpoints = FRANCE_TRAVAIL): SearchConnector {
-  const authed = async () => ({ authorization: `Bearer ${await accessToken(creds, endpoints)}` });
+  const authed = async () => ({ authorization: `Bearer ${await franceTravailToken(creds, endpoints)}` });
   return {
     async test() {
       tokens.delete(creds.clientId);

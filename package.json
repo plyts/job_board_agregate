@@ -23,6 +23,7 @@
     "worker": "JOBPILOT_PROCESS=worker tsx scripts/worker.ts",
     "eval:offers": "tsx eval/run-offers.ts",
     "llm:check": "tsx scripts/llm-check.ts",
+    "sources:check": "tsx scripts/sources-check.ts",
     "test:load": "tsx scripts/load-test.ts",
     "backup": "scripts/backup.sh",
     "backup:check": "scripts/backup-check.sh"
